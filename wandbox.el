@@ -202,9 +202,9 @@ If FILE specified, compile FILE contents instead of code."
   ;;       :key (lambda (x) (plist-get x key))
   ;;       :test #'string-equal)
   (dolist (x wandbox-profiles)
-    (if (string-equal (downcase (plist-get x key))
-                      (downcase item))
-        (return x))))
+    (let ((val (plist-get x key)))
+      (if (and val (string-equal (downcase val) (downcase item)))
+          (return x)))))
 
 (defun* wandbox-read-profile (&optional (key :name))
   (let* ((items (mapcar (lambda (x) (plist-get x key))
