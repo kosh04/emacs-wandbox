@@ -1,5 +1,7 @@
 ;;; wandbox.el --- Wandbox interface for Emacs
 
+;; Copyright (C) 2013-2014 KOBAYASHI Shigeru
+
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
 ;; Version: 0.2.1
@@ -63,6 +65,8 @@
     (:name "Lazy K" :compiler "lazyk" :ext "lazy")
     (:name "CLISP" :compiler "clisp-2.49.0" :ext "lisp")
     (:name "Pascal" :compiler "fpc-2.6.2" :ext "pas")
+    (:name "Java" :compiler "java7-openjdk" :ext "java")
+    (:name "Groovy" :compiler "groovy-2.2.1" :ext "groovy")
     )
   "Wandbox copmiler profiles (set of property list)")
 
@@ -162,7 +166,8 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                    (princ (format "<<< %s >>>" (car (assoc res alist))))
                    (terpri)
                    (princ (cdr (assoc res alist)))
-                   (terpri))))))
+                   (terpri)))))
+           (message "Compile...done"))
       (kill-buffer buf))))
 
 (defun wandbox-post (json)
@@ -233,7 +238,7 @@ Compiler profile is determined by file extension."
                     :code (prin1-to-string '(print (progn ,@form)))
                     ,@options))
 
-(put 'wandbox-eval-with 'lisp-indent-function 2)
+(put 'wandbox-eval-with 'lisp-indent-function 1)
 
 (provide 'wandbox)
 
