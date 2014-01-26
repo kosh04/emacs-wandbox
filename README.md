@@ -26,12 +26,12 @@ wandbox.el を拾ってきてロードして下さい。
 
 ## リファレンス
 
-- Command: `wandbox-compile-file filename`
+- Command: `wandbox-compile-file (filename)`
 
   指定したファイルをコンパイルします。
   呼び出すコンパイラは拡張子から自動判別されます。
 
-- Command: `wandbox-compile-region from to`
+- Command: `wandbox-compile-region (from to)`
 
   指定したリージョンをコンパイルします。
 
@@ -39,12 +39,13 @@ wandbox.el を拾ってきてロードして下さい。
 
   現在のバッファをコンパイルします。
 
-- Function: `wandbox-compile &rest profile &key compiler options code stdin compiler-option runtime-option name file`
+- Function: `wandbox-compile (&rest profile &key compiler options code stdin compiler-option runtime-option name file)`
 
   コンパイラやオプションなどを直接指定してコンパイルします。
-  引数 compiler, options, code, stdin, compiler-option, runtime-option は
+  `wandbox` は `wandbox-compile` のエイリアスです。
+  引数 `compiler`, `options`, `code`, `stdin`, `compiler-option`, `runtime-option` は
   Wandbox API に渡すための文字列パラメータを指定します。
-  compiler-option, runtime-option はリスト形式で指定することもできます。
+  `compiler-option`, `runtime-option` はリスト形式で指定することもできます。
 
   また追加機能として、ファイル名やプロファイル名の指定ができます。
   プロファイルについては `wandbox-profiles` を参照してください。
@@ -53,6 +54,11 @@ wandbox.el を拾ってきてロードして下さい。
 
   Wandbox API の呼び出しパラメータを設定するためのプロファイル (という名のテンプレート) 群です。
   ユーザ独自のプロファイルを追加することもできます。
+
+- Variable: `wandbox-precompiled-hook`
+
+  ここに関数を追加しておくことで、Wandbox を呼び出す前のプロファイルを編集できます。
+  呼び出した関数の返り値はプロファイルにマージされます。
 
 
 ## Example
@@ -64,31 +70,45 @@ wandbox.el を拾ってきてロードして下さい。
 
 ```elisp
 コードを C 言語としてコンパイルする (プロファイルを利用)
-(wandbox-compile :name "C" :code "main(){}")
+(wandbox :name "C" :code "main(){}")
 ```
 
 ```elisp
 ;; 指定したファイルをコンパイルする
-(wandbox-compile :name "C" :file "/path/to/prog.c")
+(wandbox :name "C" :file "/path/to/prog.c")
 ```
 
 ```elisp
 ;; 標準入力を利用する
-(wandbox-compile :name "Perl" :code "while (<>) { print uc($_); }" :stdin "hello")
+(wandbox :name "Perl" :code "while (<>) { print uc($_); }" :stdin "hello")
 ```
 
 ```elisp
 ;; 独自プロファイルを追加する
 (add-to-list 'wandbox-profiles '(:name "ANSI C" :compiler "clang-head" :options "warning,c89"))
-(wandbox-compile :name "ANSI C" :file "/path/to/prog.c")
+(wandbox :name "ANSI C" :file "/path/to/prog.c")
+```
+
+```elisp
+;; gist にあるコード片をコンパイルする
+(wandbox :name "CLISP" :gist 219882 :stdin "Uryyb Jbeyq!")
+```
+
+```elisp
+;; ファイルの代わりにURLを指定してコンパイルする (:url キーワードの追加)
+(defun* wandbox-option-url (&key url &allow-other-keys)
+  (if url (plist-put nil :code (wandbox-fetch url))))
+(add-to-list 'wandbox-precompiled-hook #'wandbox-option-url)
+
+(wandbox :name "C" :url "http://localhost/prog.c")
 ```
 
 
 ## TODO
 
-- [ ] add merge-plist
+- [*] add merge-plist
 - [ ] コンパイル結果のデータをユーザが弄れるようにする
-- [ ] gist などのコード片を扱えるようにする
+- [*] gist などのコード片を扱えるようにする
 - [ ] 複数プロファイルの指定
 - [ ] コンパイラの設定を簡単にしたい
 - [ ] request.el を利用する (ただし依存関係が増える)
