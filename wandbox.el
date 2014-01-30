@@ -260,10 +260,11 @@ If FILE specified, compile FILE contents instead of code."
             (return (copy-sequence x)))))))
 
 (defun* wandbox-read-profile (&optional (key :name))
-  (let* ((items (mapcar (lambda (x) (plist-get x key))
+  (let* ((completion-ignore-case t)
+         (items (mapcar (lambda (x) (plist-get x key))
                         wandbox-profiles))
          (name (completing-read "Profile: " items)))
-    (wandbox-find-profile :name name)))
+    (wandbox-find-profile key name)))
 
 (defun wandbox-compile-file (filename)
   "Compile FILENAME contents.
