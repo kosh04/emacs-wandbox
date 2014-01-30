@@ -55,6 +55,7 @@
     (:name "perl-devel" :lang "Perl" :compiler "perl-5.19.2" :ext "pl")
     (:name "Python2.7" :lang "Python" :compiler "python-2.7.3" :ext "py")
     (:name "Python3.3" :lang "Python" :compiler "python-3.3.2" :ext "py")
+    (:name "PyPy" :lang "Python" :compiler "pypy-2.1" :ext "py")
     (:name "Ruby1.9" :lang "Ruby" :compiler "ruby-1.9.3-p0" :ext "rb")
     (:name "Ruby2.0" :lang "Ruby" :compiler "ruby-2.0.0-p247" :ext "rb")
     (:name "mruby" :lang "Ruby" :compiler "mruby-head" :ext "rb")
