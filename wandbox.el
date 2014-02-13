@@ -73,7 +73,8 @@
     (:name "node" :lang "JavaScript" :compiler "node-0.10.24" :ext "js")
     (:name "SpiderMonkey" :lang "JavaScript" :compiler "mozjs-24.2.0" :ext "js")
     (:name "coffee HEAD" :lang "CoffeeScript" :compiler "coffee-script-head" :ext "coffee")
-    (:name "coffee" :lang "CoffeeScript" :compiler "coffee-script-1.6.3" :ext "coffee")
+    (:name "coffee1.7" :lang "CoffeeScript" :compiler "coffee-script-1.7.1" :ext "coffee")
+    (:name "coffee1.6" :lang "CoofeeScript" :compiler "coffee-script-1.6.3" :ext "coffee")
     )
   "Wandbox copmiler profiles (set of property list)")
 
