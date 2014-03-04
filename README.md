@@ -39,7 +39,7 @@ wandbox.el を拾ってきてロードして下さい。
 
   現在のバッファをコンパイルします。
 
-- Function: `wandbox-compile (&rest profile &key compiler options code stdin compiler-option runtime-option name file)`
+- Function: `wandbox-compile (&rest profile &key compiler options code stdin compiler-option runtime-option lang name file)`
 
   コンパイラやオプションなどを直接指定してコンパイルします。
   `wandbox` は `wandbox-compile` のエイリアスです。
@@ -47,7 +47,7 @@ wandbox.el を拾ってきてロードして下さい。
   Wandbox API に渡すための文字列パラメータを指定します。
   `compiler-option`, `runtime-option` はリスト形式で指定することもできます。
 
-  また追加機能として、ファイル名やプロファイル名の指定ができます。
+  また追加機能としてファイル名やプロファイル名の指定ができます。
   プロファイルについては `wandbox-profiles` を参照してください。
 
 - Variable: `wandbox-profiles`
@@ -64,23 +64,23 @@ wandbox.el を拾ってきてロードして下さい。
 ## Example
 
 ```elisp
-;; コンパイラ、オプションを指定してコンパイルする
+;; コンパイラとオプションを指定してコンパイルする
 (wandbox :compiler "gcc-head" :options "warning" :code "main(){}")
 ```
 
 ```elisp
 コードを C 言語としてコンパイルする (プロファイルを利用)
-(wandbox :name "C" :code "main(){}")
+(wandbox :lang "C" :code "main(){}")
 ```
 
 ```elisp
 ;; 指定したファイルをコンパイルする
-(wandbox :name "C" :file "/path/to/prog.c")
+(wandbox :lang "C" :file "/path/to/prog.c")
 ```
 
 ```elisp
 ;; 標準入力を利用する
-(wandbox :name "Perl" :code "while (<>) { print uc($_); }" :stdin "hello")
+(wandbox :lang "Perl" :code "while (<>) { print uc($_); }" :stdin "hello")
 ```
 
 ```elisp
@@ -90,7 +90,7 @@ wandbox.el を拾ってきてロードして下さい。
 ```
 
 ```elisp
-;; gist にあるコード片をコンパイルする
+;; gist のコード片をコンパイルする
 (wandbox :name "CLISP" :gist 219882 :stdin "Uryyb Jbeyq!")
 ```
 
@@ -100,7 +100,7 @@ wandbox.el を拾ってきてロードして下さい。
   (if url (plist-put nil :code (wandbox-fetch url))))
 (add-to-list 'wandbox-precompiled-hook #'wandbox-option-url)
 
-(wandbox :name "C" :url "http://localhost/prog.c")
+(wandbox :lang "C" :url "http://localhost/prog.c")
 ```
 
 
