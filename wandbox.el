@@ -22,7 +22,7 @@
 ;; ## Use on Emacs Lisp
 ;;
 ;; (wandbox :compiler "gcc-head" :options "warning" :code "main(){}")
-;; (wandbox :lang "C" :compiler-option "-lm" :file "/path/to/prog.c")
+;; (wandbox :lang "C" :compiler-option "-lm" :file "/path/to/prog.c" :save t)
 ;; (wandbox :lang "perl" :code "while (<>) { print uc($_); }" :stdin "hello")
 ;; (wandbox :lang "ruby" :code "p ARGV" :runtime-option '("1" "2" "3"))
 ;;
@@ -31,6 +31,7 @@
 
 ;;; Change Log:
 
+;; 2015/08/05 ver 0.3.5  permalink api available (add :save option).
 ;; 2014/01/25 ver 0.3.0  gist snippet available.
 ;; 2014/01/10 ver 0.2.1  commit to github. add wandbox-eval-with.
 ;; 2013/12/30 ver 0.2    keyword arguments and profile available.
@@ -95,6 +96,8 @@
     "program_message"
     "status"
     "signal"
+    ;;"permlink" ; perhaps "permalink" ?
+    "url"
     ))
 
 (defvar wandbox-compilers nil)
@@ -167,7 +170,7 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
              (or (plist-get profile x) ""))
            (raw (x)
              (let ((v (val x)))
-               (if (consp v) (join-as-string v "\n") (or v "")))))
+               (if (consp v) (join-as-string v "\n") v))))
     (unless (wandbox-compiler-exist-p (val :compiler))
       (error "Unknown compiler: %s" (val :compiler)))
     (let ((alist `(("compiler" . ,(val :compiler))
@@ -175,7 +178,9 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                    ("code"     . ,(val :code))
                    ("stdin"    . ,(val :stdin))
                    ("compiler-option-raw" . ,(raw :compiler-option))
-                   ("runtime-option-raw"  . ,(raw :runtime-option)))))
+                   ("runtime-option-raw"  . ,(raw :runtime-option))
+                   ("save" . ,(val :save))
+                   )))
       (prog1
           (json-encode alist)
         ;; debug log
@@ -196,13 +201,17 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
            (let* ((http-body (buffer-substring (1+ url-http-end-of-headers) (point-max)))
                   (alist (let ((json-key-type 'string))
                            (json-read-from-string
-                            (decode-coding-string http-body 'utf-8-unix)))))
+                            (decode-coding-string http-body 'utf-8-unix))))
+                  (url (cdr (assoc "url" alist))))
+             (message "Wandbox recieve message: %s" http-body)
+             (if url (browse-url url))  ; or (wandbox-tweet url)
              (with-output-to-temp-buffer "*Wandbox Output*"
                (dolist (res wandbox-response-keywords)
                  (when (assoc res alist)
                    (princ (format "[%s]" (car (assoc res alist))))
                    (terpri)
                    (princ (cdr (assoc res alist)))
+                   (terpri)
                    (terpri)))))
            (message "Compile...done"))
       (kill-buffer buf))))
@@ -220,11 +229,12 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                          compiler options code stdin
                          compiler-option runtime-option
                          lang name file
+                         (save nil)
                          &allow-other-keys)
   "Compile CODE as COMPILER's source code.
 If NAME specified, select compiler template from `wandbox-profiles'.
 If FILE specified, compile FILE contents instead of code."
-  (when lang 
+  (when lang
     (setq profile (wandbox-merge-plist profile (wandbox-find-profile :lang lang))))
   (when name
     (setq profile (wandbox-merge-plist profile (wandbox-find-profile :name name))))
@@ -307,6 +317,10 @@ Compiler profile is determined by file extension."
 (put 'wandbox-eval-with 'lisp-indent-function 1)
 
 (setf (symbol-function 'wandbox) #'wandbox-compile)
+
+(defun wandbox-tweet (url)
+  (browse-url (concat "https://twitter.com/intent/tweet?text=Wandbox&url="
+                      (url-hexify-string url))))
 
 (provide 'wandbox)
 

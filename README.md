@@ -39,7 +39,7 @@ wandbox.el を拾ってきてロードして下さい。
 
   現在のバッファをコンパイルします。
 
-- Function: `wandbox-compile (&rest profile &key compiler options code stdin compiler-option runtime-option lang name file)`
+- Function: `wandbox-compile (&rest profile &key compiler options code stdin compiler-option runtime-option lang name file save)`
 
   コンパイラやオプションなどを直接指定してコンパイルします。
   `wandbox` は `wandbox-compile` のエイリアスです。
@@ -52,13 +52,13 @@ wandbox.el を拾ってきてロードして下さい。
 
 - Variable: `wandbox-profiles`
 
-  Wandbox API の呼び出しパラメータを設定するためのプロファイル (という名のテンプレート) 群です。
+  Wandbox API の呼び出しパラメータを予め設定しておくためのプロファイル (という名のテンプレート) 群です。
   ユーザ独自のプロファイルを追加することもできます。
 
 - Variable: `wandbox-precompiled-hook`
 
   ここに関数を追加しておくことで、Wandbox を呼び出す前のプロファイルを編集できます。
-  呼び出した関数の返り値はプロファイルにマージされます。
+  呼び出された関数の返り値はプロファイルにマージされます。
 
 
 ## Example
@@ -74,8 +74,8 @@ wandbox.el を拾ってきてロードして下さい。
 ```
 
 ```elisp
-;; 指定したファイルをコンパイルする
-(wandbox :lang "C" :file "/path/to/prog.c")
+;; 指定したファイルをコンパイルして、パーマリンクを生成する
+(wandbox :lang "C" :file "/path/to/prog.c" :save t)
 ```
 
 ```elisp
@@ -91,6 +91,7 @@ wandbox.el を拾ってきてロードして下さい。
 
 ```elisp
 ;; gist のコード片をコンパイルする
+;; sample: https://gist.github.com/219882
 (wandbox :name "CLISP" :gist 219882 :stdin "Uryyb Jbeyq!")
 ```
 
@@ -106,9 +107,9 @@ wandbox.el を拾ってきてロードして下さい。
 
 ## TODO
 
-- [*] add merge-plist
+- [ ] [Done] add merge-plist
 - [ ] コンパイル結果のデータをユーザが弄れるようにする
-- [*] gist などのコード片を扱えるようにする
+- [ ] [Done] gist などのコード片を扱えるようにする
 - [ ] 複数プロファイルの指定
 - [ ] コンパイラの設定を簡単にしたい
 - [ ] request.el を利用する (ただし依存関係が増える)
