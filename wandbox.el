@@ -168,6 +168,8 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
              (mapconcat #'(lambda (x) (format "%s" x)) list separator))
            (val (x)
              (or (plist-get profile x) ""))
+           (bool (x)
+             (if (plist-get profile x) t :json-false))
            (raw (x)
              (let ((v (val x)))
                (if (consp v) (join-as-string v "\n") v))))
@@ -179,7 +181,7 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                    ("stdin"    . ,(val :stdin))
                    ("compiler-option-raw" . ,(raw :compiler-option))
                    ("runtime-option-raw"  . ,(raw :runtime-option))
-                   ("save" . ,(val :save))
+                   ("save" . ,(bool :save))
                    )))
       (prog1
           (json-encode alist)
