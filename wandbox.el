@@ -4,7 +4,7 @@
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.3
+;; Version: 0.3.5
 ;; Created: 2013/11/22
 ;; Keywords: c, tools
 ;; License: MIT Lisense (see LISENCE)
@@ -106,19 +106,15 @@
   "Hook run before post wandbox.
 Return value will be merged into the old profile.")
 
-(defun wandbox-fetch-url (url)
-  (declare (special url-http-end-of-headers))
-  (with-current-buffer (url-retrieve-synchronously url)
-    (unwind-protect
-        (buffer-substring (1+ url-http-end-of-headers) (point-max))
-      (kill-buffer (current-buffer)))))
+(defvar wandbox-permalink-action #'browse-url
+  "Specify function to execute when you run `wandbox-compile' with permalink option (:save).")
 
 (defun wandbox-fetch (src)
-  (if (string-match "http[s]?://" src)
-      (wandbox-fetch-url src)
-      (with-temp-buffer
-        (insert-file-contents src)
-        (buffer-string))))
+  (with-temp-buffer
+    (if (string-match "http[s]?://" src)
+        (url-insert-file-contents src)
+        (insert-file-contents src))
+    (buffer-string)))
 
 (defun wandbox-merge-plist (&rest args)
   (let ((result (car args)))
@@ -127,10 +123,15 @@ Return value will be merged into the old profile.")
             do (plist-put result key value)))
     result))
 
-(defun wandbox-fetch-compilers ()
+(defun wandbox-json-read (string)
   (let ((json-key-type 'string))
-    (json-read-from-string
-     (wandbox-fetch "http://melpon.org/wandbox/api/list.json"))))
+    (json-read-from-string string)))
+
+(defun wandbox-json-load (src)
+  (wandbox-json-read (wandbox-fetch src)))
+
+(defun wandbox-fetch-compilers ()
+  (wandbox-json-load "http://melpon.org/wandbox/api/list.json"))
 
 (defun wandbox-list-compilers ()
   (unless wandbox-compilers
@@ -200,13 +201,14 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
          (progn
            (when (equal (car status) :error)
              (error "return error: %s" (cdr status)))
-           (let* ((http-body (buffer-substring (1+ url-http-end-of-headers) (point-max)))
-                  (alist (let ((json-key-type 'string))
-                           (json-read-from-string
-                            (decode-coding-string http-body 'utf-8-unix))))
+           (let* ((http-body (decode-coding-string
+                              (buffer-substring (1+ url-http-end-of-headers) (point-max))
+                              'utf-8-unix))
+                  (alist (wandbox-json-read http-body))
                   (url (cdr (assoc "url" alist))))
              (message "Wandbox recieve message: %s" http-body)
-             (if url (browse-url url))  ; or (wandbox-tweet url)
+             (when (and url wandbox-permalink-action)
+               (funcall wandbox-permalink-action url))
              (with-output-to-temp-buffer "*Wandbox Output*"
                (dolist (res wandbox-response-keywords)
                  (when (assoc res alist)
@@ -222,9 +224,9 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
   (let ((url-request-method "POST")
         (url-request-extra-headers '(("Content-Type" . "application/json")))
         (url-request-data json))
-    (url-retrieve "http://melpon.org/wandbox/api/compile.json"
-                  'wandbox-format-url-buffer))
-  t)
+    (url-retrieve "http://melpon.org/wandbox/api/compile.json" 
+                  'wandbox-format-url-buffer)
+    t))
 
 (defun* wandbox-compile (&rest profile
                          &key
@@ -245,6 +247,8 @@ If FILE specified, compile FILE contents instead of code."
   (dolist (f wandbox-precompiled-hook)
     (setq profile (wandbox-merge-plist profile (apply f profile))))
   (wandbox-post (wandbox-build-request-data profile)))
+
+(setf (symbol-function 'wandbox) #'wandbox-compile)
 
 ;; see also: http://developer.github.com/v3/gists/
 (defun wandbox-fetch-gist (id)
@@ -318,11 +322,12 @@ Compiler profile is determined by file extension."
 
 (put 'wandbox-eval-with 'lisp-indent-function 1)
 
-(setf (symbol-function 'wandbox) #'wandbox-compile)
-
 (defun wandbox-tweet (url)
   (browse-url (concat "https://twitter.com/intent/tweet?text=Wandbox&url="
                       (url-hexify-string url))))
+
+;; [Tweet This]
+;; (setq wandbox-permalink-function #'wandbox-tweet)
 
 (provide 'wandbox)
 
