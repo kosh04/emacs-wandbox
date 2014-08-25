@@ -4,7 +4,7 @@
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.3
+;; Version: 0.3.5
 ;; Created: 2013/11/22
 ;; Keywords: c, tools
 ;; License: MIT Lisense (see LISENCE)
@@ -68,6 +68,16 @@
   "Hook run before post wandbox.
 Return value will be merged into the old profile.")
 
+(defvar wandbox-permalink-action #'browse-url
+  "Specify function to execute when you run `wandbox-compile' with permalink option (:save).")
+
+(defun wandbox-fetch (src)
+  (with-temp-buffer
+    (if (string-match "http[s]?://" src)
+        (url-insert-file-contents src)
+        (insert-file-contents src))
+    (buffer-string)))
+
 (defun wandbox-merge-plist (&rest args)
   (let ((result (car args)))
     (dolist (plist (cdr args))
@@ -88,13 +98,6 @@ Return value will be merged into the old profile.")
                            (list :ext (match-string 1 cmd))
                          nil))
                    )))
-
-(defun wandbox-fetch (src)
-  (with-temp-buffer
-    (if (string-match "http[s]?://" src)
-        (url-insert-file-contents src)
-        (insert-file-contents src))
-    (buffer-string)))
 
 (defun wandbox-json-read (string)
   (let ((json-key-type 'string))
@@ -135,9 +138,21 @@ Return value will be merged into the old profile.")
                         (return (cdr (assoc "switches" x))))))
           ",")))
 
-(defun wandbox-build-request-data (profile)
+(defun* wandbox-build-request-data (&rest profile &allow-other-keys)
   "Build JSON data to post to Wandox API.
 PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
+  (let ((lang (plist-get profile :lang))
+        (name (plist-get profile :name))
+        (file (plist-get profile :file)))
+    (setq profile
+          (wandbox-merge-plist profile
+                               (if lang (wandbox-find-profile :lang lang))
+                               (if name (wandbox-find-profile :name name))
+                               (if (and file (file-exists-p file))
+                                   `(:code ,(wandbox-fetch file))))))
+  (dolist (f wandbox-precompiled-hook)
+    (setq profile (wandbox-merge-plist profile (apply f profile))))
+
   (labels ((join-as-string (list separator)
              (mapconcat #'(lambda (x) (format "%s" x)) list separator))
            (val (x)
@@ -180,7 +195,8 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                   (alist (wandbox-json-read http-body))
                   (url (cdr (assoc "url" alist))))
              (message "Wandbox recieve message: %s" http-body)
-             (if url (browse-url url))  ; or (wandbox-tweet url)
+             (when (and url wandbox-permalink-action)
+               (funcall wandbox-permalink-action url))
              (with-output-to-temp-buffer "*Wandbox Output*"
                (dolist (res wandbox-response-keywords)
                  (when (assoc res alist)
@@ -192,35 +208,30 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
            (message "Compile...done"))
       (kill-buffer buf))))
 
-(defun* wandbox-post (json &key (async t))
+(defun* wandbox-post (json &key (sync nil))
   (let ((url-request-method "POST")
         (url-request-extra-headers '(("Content-Type" . "application/json")))
         (url-request-data json))
-    (url-retrieve "http://melpon.org/wandbox/api/compile.json"
-                  'wandbox-format-url-buffer)
-    ;; TODO: sync compile
-    ;; (wandbox-json-load "http://melpon.org/wandbox/api/compile.json")
-    t))
+    (if sync
+        (wandbox-json-load #1="http://melpon.org/wandbox/api/compile.json")
+        (progn
+          (url-retrieve #1# 'wandbox-format-url-buffer)
+          t))))
 
 (defun* wandbox-compile (&rest profile
                          &key
                          compiler options code stdin
                          compiler-option runtime-option
                          lang name file
-                         (save nil)
+                         (save nil) 
+                         (sync nil)
                          &allow-other-keys)
   "Compile CODE as COMPILER's source code.
 If NAME specified, select compiler template from `wandbox-profiles'.
 If FILE specified, compile FILE contents instead of code."
-  (when lang
-    (setq profile (wandbox-merge-plist profile (wandbox-find-profile :lang lang))))
-  (when name
-    (setq profile (wandbox-merge-plist profile (wandbox-find-profile :name name))))
-  (when (and file (file-exists-p file))
-    (setq profile (plist-put profile :code (wandbox-fetch file))))
-  (dolist (f wandbox-precompiled-hook)
-    (setq profile (wandbox-merge-plist profile (apply f profile))))
-  (wandbox-post (wandbox-build-request-data profile)))
+  (wandbox-post (apply #'wandbox-build-request-data profile) :sync sync))
+
+(defalias 'wandbox #'wandbox-compile)
 
 ;; see also: http://developer.github.com/v3/gists/
 (defun wandbox-fetch-gist (id)
@@ -293,21 +304,19 @@ Compiler profile is determined by file extension."
 
 (put 'wandbox-eval-with 'lisp-indent-function 1)
 
-(setf (symbol-function 'wandbox) #'wandbox-compile)
-
 (defun wandbox-tweet (url)
   (browse-url (concat "https://twitter.com/intent/tweet?text=Wandbox&url="
                       (url-hexify-string url))))
 
-;; (unless wandbox-profiles
-;;   (setq wandbox-profiles 
-;;         (eval-when-compile (wandbox-make-profiles))))
 
 (eval-when (load eval)
   (unless wandbox-profiles
-    (setq wandbox-profiles (wandbox-make-profiles)) ;(eval-when-compile  ...)
-))
+    (setq wandbox-profiles
+          (wandbox-make-profiles))     ; (eval-when-compile ...)
+    ))
 
+;; [Tweet This]
+;; (setq wandbox-permalink-function #'wandbox-tweet)
 
 (provide 'wandbox)
 
