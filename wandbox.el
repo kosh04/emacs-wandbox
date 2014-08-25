@@ -71,12 +71,24 @@ Return value will be merged into the old profile.")
 (defvar wandbox-permalink-action #'browse-url
   "Specify function to execute when you run `wandbox-compile' with permalink option (:save).")
 
-(defun wandbox-fetch (src)
-  (with-temp-buffer
-    (if (string-match "http[s]?://" src)
-        (url-insert-file-contents src)
-        (insert-file-contents src))
-    (buffer-string)))
+(eval-when (compile load eval)
+  (defun wandbox-fetch (src)
+    (with-temp-buffer
+      (if (string-match "http[s]?://" src)
+          (url-insert-file-contents src)
+          (insert-file-contents src))
+      (buffer-string)))
+
+  (defun wandbox-json-read (string)
+    (let ((json-key-type 'string))
+      (json-read-from-string string)))
+
+  (defun wandbox-json-load (src)
+    (wandbox-json-read (wandbox-fetch src)))
+
+  (defun wandbox-fetch-compilers ()
+    (wandbox-json-load "http://melpon.org/wandbox/api/list.json"))
+  )
 
 (defun wandbox-merge-plist (&rest args)
   (let ((result (car args)))
@@ -99,19 +111,11 @@ Return value will be merged into the old profile.")
                          nil))
                    )))
 
-(defun wandbox-json-read (string)
-  (let ((json-key-type 'string))
-    (json-read-from-string string)))
-
-(defun wandbox-json-load (src)
-  (wandbox-json-read (wandbox-fetch src)))
-
-(defun wandbox-fetch-compilers ()
-  (wandbox-json-load "http://melpon.org/wandbox/api/list.json"))
-
 (defun wandbox-list-compilers ()
   (unless wandbox-compilers
-    (setq wandbox-compilers (wandbox-fetch-compilers)))
+    (setq wandbox-compilers
+          (eval-when-compile
+            (wandbox-fetch-compilers))))
   wandbox-compilers)
 
 (defun wandbox-compiler-names ()
@@ -223,7 +227,7 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                          compiler options code stdin
                          compiler-option runtime-option
                          lang name file
-                         (save nil) 
+                         (save nil)
                          (sync nil)
                          &allow-other-keys)
   "Compile CODE as COMPILER's source code.
@@ -308,15 +312,13 @@ Compiler profile is determined by file extension."
   (browse-url (concat "https://twitter.com/intent/tweet?text=Wandbox&url="
                       (url-hexify-string url))))
 
-
-(eval-when (load eval)
-  (unless wandbox-profiles
-    (setq wandbox-profiles
-          (wandbox-make-profiles))     ; (eval-when-compile ...)
-    ))
-
 ;; [Tweet This]
 ;; (setq wandbox-permalink-function #'wandbox-tweet)
+
+;; eval-when (load eval)
+(unless wandbox-profiles
+  (setq wandbox-profiles (wandbox-make-profiles)))
+
 
 (provide 'wandbox)
 
