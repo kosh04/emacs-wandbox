@@ -242,6 +242,7 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
           (url-retrieve #1# 'wandbox-format-url-buffer)
           t))))
 
+;;;###autoload
 (defun* wandbox-compile (&rest profile
                          &key
                          compiler options code stdin
@@ -255,6 +256,7 @@ If NAME specified, select compiler template from `wandbox-profiles'.
 If FILE specified, compile FILE contents instead of code."
   (wandbox-post (apply #'wandbox-build-request-data profile) :sync sync))
 
+;;;###autoload
 (defalias 'wandbox #'wandbox-compile)
 
 ;; see also: http://developer.github.com/v3/gists/
@@ -300,6 +302,7 @@ If FILE specified, compile FILE contents instead of code."
          (name (completing-read "Profile: " items)))
     (wandbox-find-profile key name)))
 
+;;;###autoload
 (defun wandbox-compile-file (filename)
   "Compile FILENAME contents.
 Compiler profile is determined by file extension."
@@ -308,6 +311,7 @@ Compiler profile is determined by file extension."
                      (wandbox-read-profile))))
     (apply #'wandbox-compile :file filename profile)))
 
+;;;###autoload
 (defun wandbox-compile-region (from to)
   "Compile specified region."
   (interactive "r")
@@ -315,11 +319,13 @@ Compiler profile is determined by file extension."
         (code (buffer-substring-no-properties from to)))
     (apply #'wandbox-compile :code code profile)))
 
+;;;###autoload
 (defun wandbox-compile-buffer ()
   "Compile current buffer."
   (interactive)
   (wandbox-compile-region (point-min) (point-max)))
 
+;;;###autoload
 (defmacro* wandbox-eval-with ((&rest options) &body form)
   "Evaluate FORM as S-expression."
   (let ((print-circle t))
