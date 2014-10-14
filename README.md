@@ -11,7 +11,7 @@ Wandbox は @melponn と @kikairoya が開発したオンラインコンパイ�
 様々な言語に対応しています。
 
 * [Wandbox Home](http://melpon.org/wandbox/)
-* [API Reference](https://github.com/melpon/wandbox/blob/master/kennel/API.rst)
+* [API Reference](https://github.com/melpon/wandbox/blob/master/kennel2/API.rst)
 
 
 ## 使い方
