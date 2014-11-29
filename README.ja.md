@@ -3,8 +3,11 @@ Wandbox for Emacser
 
 Wandbox API を利用するための Emacs 拡張ライブラリ。
 
+README : 日本語 / [英語](README.md)
 
-## Wandox とは
+
+Wandox とは
+-----------
 
 Wandbox は @melponn と @kikairoya が開発したオンラインコンパイラです。
 主に C++ に特化している他、C, Perl, Python, Ruby, PHP, Common Lisp など
@@ -14,7 +17,8 @@ Wandbox は @melponn と @kikairoya が開発したオンラインコンパイ�
 * [API Reference](https://github.com/melpon/wandbox/blob/master/kennel2/API.rst)
 
 
-## 使い方
+インストール
+------------
 
 wandbox.el を拾ってきてロードして下さい。
 
@@ -24,22 +28,27 @@ wandbox.el を拾ってきてロードして下さい。
 より詳細なオプションを指定したい場合は `wandbox-compile` を利用してください。
 
 
-## リファレンス
+リファレンス
+------------
 
-- Command: `wandbox-compile-file (filename)`
+### コマンド
+
+* `wandbox-compile-file (filename)`
 
   指定したファイルをコンパイルします。
   呼び出すコンパイラは拡張子から自動判別されます。
 
-- Command: `wandbox-compile-region (from to)`
+* `wandbox-compile-region (from to)`
 
   指定したリージョンをコンパイルします。
 
-- Command: `wandbox-compile-buffer`
+* `wandbox-compile-buffer ()`
 
   現在のバッファをコンパイルします。
 
-- Function: `wandbox-compile (&rest profile &key compiler options code stdin compiler-option runtime-option lang name file save)`
+### 関数
+
+* `wandbox-compile (&rest profile &key compiler options code stdin compiler-option runtime-option lang name file save)`
 
   コンパイラやオプションなどを直接指定してコンパイルします。
   `wandbox` は `wandbox-compile` のエイリアスです。
@@ -50,18 +59,21 @@ wandbox.el を拾ってきてロードして下さい。
   また追加機能としてファイル名やプロファイル名の指定ができます。
   プロファイルについては `wandbox-profiles` を参照してください。
 
-- Variable: `wandbox-profiles`
+### 変数
+
+* `wandbox-profiles`
 
   Wandbox API の呼び出しパラメータを予め設定しておくためのプロファイル (という名のテンプレート) 群です。
   ユーザ独自のプロファイルを追加することもできます。
 
-- Variable: `wandbox-precompiled-hook`
+* `wandbox-precompiled-hook`
 
   ここに関数を追加しておくことで、Wandbox を呼び出す前のプロファイルを編集できます。
   呼び出された関数の返り値はプロファイルにマージされます。
 
 
-## Example
+Example
+-------
 
 ```elisp
 ;; コンパイラとオプションを指定してコンパイルする
@@ -105,7 +117,8 @@ wandbox.el を拾ってきてロードして下さい。
 ```
 
 
-## TODO
+TODO
+----
 
 - [ ] [Done] add merge-plist
 - [ ] コンパイル結果のデータをユーザが弄れるようにする
@@ -116,6 +129,7 @@ wandbox.el を拾ってきてロードして下さい。
 - [ ] テストの作成
 
 
-## License
+ライセンス
+----------
 
 このソフトウェアは MIT ライセンスのもとで公開されています。
