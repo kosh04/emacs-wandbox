@@ -328,12 +328,11 @@ Compiler profile is determined by file extension."
 ;;;###autoload
 (defmacro* wandbox-eval-with ((&rest options) &body form)
   "Evaluate FORM as S-expression."
+  (declare (indent 1))
   (let ((print-circle t))
     `(wandbox-compile :name "CLISP"
                       :code ,(prin1-to-string `(print (progn ,@form)))
                       ,@options)))
-
-(put 'wandbox-eval-with 'lisp-indent-function 1)
 
 (defun wandbox-tweet (url)
   (browse-url (concat "https://twitter.com/intent/tweet?text=Wandbox&url="
