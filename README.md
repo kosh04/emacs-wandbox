@@ -99,14 +99,14 @@ Example
 TODO
 ----
 
-- [*] add merge-plist
-- [ ] configure response-data
-- [*] handle gist snippet as code
-- [ ] multiple profiles (e.g. compare gcc/clang)
-- [ ] easy setting compiler-options
-- [ ] require request.el
-- [*] auto generated profile
 - [ ] add test
+- [x] add merge-plist
+- [ ] configure response-data
+- [x] handle gist snippet as code
+- [ ] multiple profiles (e.g. compare gcc/clang)
+- [ ] easy setting for compiler-options
+- [ ] require request.el
+- [x] auto generated profile (#2)
 
 
 License
