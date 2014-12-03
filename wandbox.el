@@ -5,8 +5,9 @@
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
 ;; Version: 0.3.5
+;; Package-Requires: ((emacs "24") (cl "2.02") (url-http "1.1") (json "1.3"))
+;; Keywords: c, programming, tools
 ;; Created: 2013/11/22
-;; Keywords: c, tools
 ;; License: MIT Lisense (see LISENCE)
 
 ;; This file is NOT part of GNU Emacs.
@@ -318,7 +319,6 @@ Compiler profile is determined by file extension."
 ;; eval-when (load eval)
 (unless wandbox-profiles
   (setq wandbox-profiles (wandbox-make-profiles)))
-
 
 (provide 'wandbox)
 
