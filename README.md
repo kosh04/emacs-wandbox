@@ -96,25 +96,20 @@ Example
 ```
 
 
-<<<<<<< HEAD
-## TODO
+TODO
+----
 
-- [ ] [Done] add merge-plist
-- [ ] コンパイル結果のデータをユーザが弄れるようにする
-- [ ] [Done] gist などのコード片を扱えるようにする
-- [ ] 複数プロファイルの指定
-- [ ] コンパイラの設定を簡単にしたい
-- [ ] request.el を利用する (ただし依存関係が増える)
-- [ ] /wandbox/api/list.json を利用したプロファイルの自動生成
-      API 応答時間が遅いのを何とかするのと
-      コンパイル時の定数展開ができればなお良い
-- [ ] テストの作成
+- [*] add merge-plist
+- [ ] configure response-data
+- [*] handle gist snippet as code
+- [ ] multiple profiles (e.g. compare gcc/clang)
+- [ ] easy setting compiler-options
+- [ ] require request.el
+- [*] auto generated profile
+- [ ] add test
 
 
-## License
-=======
 License
 -------
->>>>>>> master
 
 This software is licensed under the MIT-License.
