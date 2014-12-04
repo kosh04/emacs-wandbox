@@ -107,7 +107,9 @@ Return value will be merged into the old profile.")
                          (list :options #3#)
                        nil)
                    ,@(let ((cmd (cdr (assoc "display-compile-command" #1#))))
-                       (if (string-match "prog\\.\\([A-Za-z0-9]+\\)" cmd)
+                       ;; match "gcc prog.c" -> "c"
+                       ;; match "mcs -out:prog.exe prog.cs" -> "cs"
+                       (if (string-match "\\s-\\<prog\\.\\([A-Za-z0-9]+\\)\\>" cmd)
                            (list :ext (match-string 1 cmd))
                          nil))
                    )))
