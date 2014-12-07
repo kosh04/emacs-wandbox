@@ -1,7 +1,7 @@
 Wandbox for Emacser
 ===================
 
-wandbox.el is a Emacs Lisp Library for Wandbox API.
+wandbox.el is Wandbox API Library for Emacs.
 
 README : [Japanese](README.ja.md) / English
 
@@ -41,6 +41,7 @@ References
 * `wandbox-compile (&rest profile &key compiler options code stdin compiler-option runtime-option lang name file save)`
 
   Note: `wandbox` is an alias definition.
+
   Run wandbox compile with detailed options.
   arguments `compiler`, `options`, `code`, `compiler-option`, `runtime-option`,
   `save` is based on wandbox API.

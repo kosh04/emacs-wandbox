@@ -4,8 +4,8 @@
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.3.5
-;; Package-Requires: ((emacs "24") (cl "2.02") (url-http "1.1") (json "1.3"))
+;; Version: 0.4
+;; Package-Requires: ((emacs "24") (url-http "1.1") (json "1.3"))
 ;; Keywords: c, programming, tools
 ;; Created: 2013/11/22
 ;; License: MIT Lisense (see LISENCE)
@@ -32,7 +32,7 @@
 
 ;;; Change Log:
 
-;; 2014/xx/xx ver 0.4.0  profiles are generated from /wandbox/api/list.json
+;; 2014/12/06 ver 0.4.0  profiles are generated from /wandbox/api/list.json
 ;; 2014/08/05 ver 0.3.5  permalink api available (add :save option).
 ;; 2014/01/25 ver 0.3.0  gist snippet available.
 ;; 2014/01/10 ver 0.2.1  commit to github. add wandbox-eval-with.
@@ -47,7 +47,7 @@
 (require 'json)
 
 (defvar wandbox-profiles nil
-  "Wandbox copmiler profiles (set of property list)")
+  "Wandbox copmiler profiles (set of plist).")
 
 (defvar wandbox-response-keywords
   '(
@@ -59,11 +59,13 @@
     "program_message"
     "status"
     "signal"
-    ;;"permlink" ; perhaps "permalink" ?
+    ;;"permlink"
     "url"
-    ))
+    )
+  "Wandbox compile api response keywords.")
 
-(defvar wandbox-compilers nil)
+(defvar wandbox-compilers nil
+  "List compilers available in wandbox.")
 
 (defvar wandbox-precompiled-hook nil
   "Hook run before post wandbox.
@@ -74,6 +76,7 @@ Return value will be merged into the old profile.")
 
 (eval-when (compile load eval)
   (defun wandbox-fetch (src)
+    "Fetch SRC contains (filename or url)."
     (with-temp-buffer
       (if (string-match "http[s]?://" src)
           (url-insert-file-contents src)
@@ -81,40 +84,50 @@ Return value will be merged into the old profile.")
       (buffer-string)))
 
   (defun wandbox-json-read (string)
+    "Decode json object in STRING."
     (let ((json-key-type 'string))
       (json-read-from-string string)))
 
   (defun wandbox-json-load (src)
+    "Encode json object from SRC."
     (wandbox-json-read (wandbox-fetch src)))
 
   (defun wandbox-fetch-compilers ()
+    "Fetch compilers available in wandbox."
     (wandbox-json-load "http://melpon.org/wandbox/api/list.json"))
   )
 
 (defun wandbox-merge-plist (&rest args)
+  "Merge all the given ARGS into a new plist."
   (let ((result (car args)))
     (dolist (plist (cdr args))
       (loop for (key value) on plist by #'cddr
             do (plist-put result key value)))
     result))
 
-(defmacro wandbox-make-profiles ()
-  `(loop for #1=#:compiler in (append (wandbox-list-compilers) nil)
-         collect `(:lang ,(cdr (assoc "language" #1#))
-                   :name ,(cdr (assoc "display-name" #1#))
-                   :compiler ,#2=(cdr (assoc "name" #1#))
-                   ,@(if (not (string= "" #3=(wandbox-default-compiler-options #2#)))
-                         (list :options #3#)
-                       nil)
-                   ,@(let ((cmd (cdr (assoc "display-compile-command" #1#))))
-                       ;; match "gcc prog.c" -> "c"
-                       ;; match "mcs -out:prog.exe prog.cs" -> "cs"
-                       (if (string-match "\\s-\\<prog\\.\\([A-Za-z0-9]+\\)\\>" cmd)
-                           (list :ext (match-string 1 cmd))
-                         nil))
-                   )))
+(defsubst wandbox--log (format &rest args)
+  (let ((msg (apply #'format format args)))
+    (setq msg (replace-regexp-in-string "\n" "" msg  nil t)) ; one-line
+    (message "Wandbox: %s" msg)))
+
+(defun wandbox-make-profiles ()
+  "Generate profiles from `wandbox-compilers'."
+  (mapcar (lambda (compiler)
+            `(:lang ,(cdr (assoc "language" compiler))
+              :name ,(cdr (assoc "display-name" compiler))
+              :compiler ,#1=(cdr (assoc "name" compiler))
+              :options ,(let ((opts (wandbox-default-compiler-options #1#)))
+                          (if (not (string= opts ""))
+                              opts))
+              :ext ,(let ((cmd (cdr (assoc "display-compile-command" compiler))))
+                      ;; match "gcc prog.c" -> "c"
+                      ;; match "mcs -out:prog.exe prog.cs" -> "cs"
+                      (if (string-match "\\s-\\<prog\\.\\([A-Za-z0-9]+\\)\\>" cmd)
+                          (match-string 1 cmd)))))
+          (wandbox-list-compilers)))
 
 (defun wandbox-list-compilers ()
+  "Return compilers available in wandbox."
   (unless wandbox-compilers
     (setq wandbox-compilers
           (eval-when-compile
@@ -122,11 +135,12 @@ Return value will be merged into the old profile.")
   wandbox-compilers)
 
 (defun wandbox-compiler-names ()
-  "Return the available compiler list."
+  "Return compiler names available in wandbox."
   (mapcar (lambda (x) (cdr (assoc "name" x)))
           (wandbox-list-compilers)))
 
 (defun wandbox-compiler-exist-p (name)
+  "Return non-nil if NAME is available compiler name in wandbox."
   (member name (wandbox-compiler-names)))
 
 (defun wandbox-default-compiler-options (compiler)
@@ -186,7 +200,8 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                    (if (< 20 (length str)) (format "%.20s..." str) str)))
           (dolist (key '("code" "stdin"))
             (setf #1=(cdr (assoc key alist)) (truncate #1#)))
-          (message "Wandbox build request: %s" (json-encode alist))))
+          (wandbox--log "build request: %s" (json-encode alist))
+          ))
       )))
 
 (defun wandbox-format-url-buffer (status)
@@ -195,13 +210,13 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
     (unwind-protect
          (progn
            (when (equal (car status) :error)
-             (error "return error: %s" (cdr status)))
+             (error "Return HTTP error: %s" (cdr status)))
            (let* ((http-body (decode-coding-string
                               (buffer-substring (1+ url-http-end-of-headers) (point-max))
                               'utf-8-unix))
                   (alist (wandbox-json-read http-body))
                   (url (cdr (assoc "url" alist))))
-             (message "Wandbox recieve message: %s" http-body)
+             (wandbox--log "recieve: %s" http-body)
              (when (and url wandbox-permalink-action)
                (funcall wandbox-permalink-action url))
              (with-output-to-temp-buffer "*Wandbox Output*"
@@ -212,10 +227,11 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                    (princ (cdr (assoc res alist)))
                    (terpri)
                    (terpri)))))
-           (message "Compile...done"))
+           (wandbox--log "Compile...done"))
       (kill-buffer buf))))
 
 (defun* wandbox-post (json &key (sync nil))
+  "Request compile api with JSON data."
   (let ((url-request-method "POST")
         (url-request-extra-headers '(("Content-Type" . "application/json")))
         (url-request-data json))
@@ -244,7 +260,7 @@ If FILE specified, compile FILE contents instead of code."
 
 ;; see also: http://developer.github.com/v3/gists/
 (defun wandbox-fetch-gist (id)
-  "Get a single gist from ID."
+  "Fetch a single gist from ID."
   (let ((url (format "https://api.github.com/gists/%d" id)))
     (wandbox-json-load url)))
 
@@ -268,6 +284,7 @@ If FILE specified, compile FILE contents instead of code."
 (add-to-list 'wandbox-precompiled-hook #'wandbox-option-code t)
 
 (defun wandbox-find-profile (key item)
+  "Find the profile match KEY and ITEM."
   ;; (find item wandbox-profiles
   ;;       :key (lambda (x) (plist-get x key))
   ;;       :test #'string-equal)
@@ -278,6 +295,8 @@ If FILE specified, compile FILE contents instead of code."
             (return (copy-sequence x)))))))
 
 (defun* wandbox-read-profile (&optional (key :name))
+  "Read a profile setting.
+Completion list is generate from matchs KEY."
   (let* ((completion-ignore-case t)
          (items (mapcar (lambda (x) (plist-get x key))
                         wandbox-profiles))
