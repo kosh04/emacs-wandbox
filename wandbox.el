@@ -1,11 +1,11 @@
-;;; wandbox.el --- Wandbox interface for Emacs
+;;; wandbox.el --- Wandbox API Library for Emacs
 
 ;; Copyright (C) 2013-2014 KOBAYASHI Shigeru
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
 ;; Version: 0.4
-;; Package-Requires: ((emacs "24") (url-http "1.1") (json "1.3"))
+;; Package-Requires: ((emacs "24") (json "1.3"))
 ;; Keywords: c, programming, tools
 ;; Created: 2013/11/22
 ;; License: MIT Lisense (see LISENCE)
