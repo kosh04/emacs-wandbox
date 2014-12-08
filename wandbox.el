@@ -4,7 +4,7 @@
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.4
+;; Version: 0.4.1
 ;; Package-Requires: ((emacs "24") (json "1.3"))
 ;; Keywords: c, programming, tools
 ;; Created: 2013/11/22
@@ -32,6 +32,7 @@
 
 ;;; Change Log:
 
+;; 2014/12/09 ver 0.4.1  add Testing and Cask
 ;; 2014/12/06 ver 0.4.0  profiles are generated from /wandbox/api/list.json
 ;; 2014/08/05 ver 0.3.5  permalink api available (add :save option).
 ;; 2014/01/25 ver 0.3.0  gist snippet available.
