@@ -100,7 +100,7 @@ Example
 TODO
 ----
 
-- [ ] add test
+- [x] add test
 - [x] add merge-plist
 - [ ] configure response-data
 - [x] handle gist snippet as code
