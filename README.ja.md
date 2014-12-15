@@ -1,6 +1,8 @@
 Wandbox for Emacser
 ===================
 
+[![MELPA](http://melpa.org/packages/wandbox-badge.svg)](http://melpa.org/#/wandbox)
+
 Wandbox API を利用するための Emacs 拡張ライブラリ。
 
 README : 日本語 / [英語](README.md)
