@@ -8,7 +8,6 @@ CASK := EMACS=$(EMACS) $(CASK)
 
 SRCS := wandbox.el
 
-
 PACKAGE_DIR := $(shell $(CASK) package-directory)
 
 EMACS_BATCH = $(EMACS) -batch -no-site-file $(EMACSFLAGS)
@@ -31,7 +30,7 @@ $(PACKAGE_DIR): Cask
 test: EMACSFLAGS += -L .
 test:
 	$(CASK) exec $(EMACS_BATCH) \
-	-l test-wandbox.el \
+	-l wandbox-test.el \
 	-f ert-run-tests-batch-and-exit
 
 clean:
