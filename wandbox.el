@@ -8,9 +8,16 @@
 ;; Package-Requires: ((emacs "24") (json "1.3"))
 ;; Keywords: c, programming, tools
 ;; Created: 2013/11/22
-;; License: MIT Lisense (see LISENCE)
+;; License: MIT License (see LISENCE)
 
 ;; This file is NOT part of GNU Emacs.
+
+;;; Commentary:
+
+;; wandbox.el is wandbox (online compiler) interface.
+;; You can compile and run code snippets by using wandbox API.
+
+;; Wandbox Home: http://melpon.org/wandbox/
 
 ;;; Example:
 
