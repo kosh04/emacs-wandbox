@@ -134,6 +134,33 @@ Return value will be merged into the old profile.")
                           (match-string 1 cmd)))))
           (wandbox-list-compilers)))
 
+(defun wandbox-buffer-profile ()
+  "Returns embbedded wandbox parameters in current buffer.
+For example:
+// hello.c
+// #wandbox compiler: gcc-head
+// #wandbox compiler-option: -lm
+It returns
+\(:compiler \"gcc-head\" :compiler-option \"-lm\"\)"
+  (let ((params nil))
+    (save-excursion
+      (goto-char (point-min))
+      (while (re-search-forward "#wandbox \\([-a-z]+\\): \\(.+\\)$" nil t)
+        (let ((key (intern (concat ":" (buffer-substring-no-properties
+                                        (match-beginning 1)
+                                        (match-end 1)))))
+              (val (buffer-substring-no-properties
+                    (match-beginning 2) 
+                    (match-end 2))))
+          (setq params (plist-put params key val)))))
+    params))
+
+(defun wandbox-fetch-as-profile (src)
+  "Return wandbox profile, contains (:code *SRC ...)."
+  (with-temp-buffer
+    (insert-file-contents src)
+    (plist-put (wandbox-buffer-profile) :code (buffer-string))))
+
 (defun wandbox-list-compilers ()
   "Return compilers available in wandbox."
   (unless wandbox-compilers
@@ -178,7 +205,7 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                                (if lang (wandbox-find-profile :lang lang))
                                (if name (wandbox-find-profile :name name))
                                (if (and file (file-exists-p file))
-                                   `(:code ,(wandbox-fetch file))))))
+                                   (wandbox-fetch-as-profile file)))))
   (dolist (f wandbox-precompiled-hook)
     (setq profile (wandbox-merge-plist profile (apply f profile))))
 
@@ -324,7 +351,9 @@ Compiler profile is determined by file extension."
 (defun wandbox-compile-region (from to)
   "Compile specified region."
   (interactive "r")
-  (let ((profile (wandbox-read-profile))
+  (let ((profile (or (wandbox-buffer-profile)
+                     (wandbox-find-profile :ext (file-name-extension (buffer-file-name)))
+                     (wandbox-read-profile)))
         (code (buffer-substring-no-properties from to)))
     (apply #'wandbox-compile :code code profile)))
 
