@@ -2,6 +2,7 @@ Wandbox for Emacser
 ===================
 
 [![MELPA](http://melpa.org/packages/wandbox-badge.svg)](http://melpa.org/#/wandbox)
+[![Build Status](https://travis-ci.org/kosh04/emacs-wandbox.svg?branch=master)](https://travis-ci.org/kosh04/emacs-wandbox)
 
 wandbox.el is Wandbox API Library for Emacs.
 
