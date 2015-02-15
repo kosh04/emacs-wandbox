@@ -15,16 +15,47 @@
         (json-key-type 'keyword))
     (json-read-from-string data)))
 
+(defsubst test-wandbox-plist-member (pitem plist)
+  (cl-check-type pitem list)
+  (cl-check-type plist list)
+  (cl-loop for (key value) on pitem by #'cddr
+           always (equal value (cl-getf plist key))))
+
 (defsubst test-wandbox-plist-equal (x y)
-  (let ((xkeys (cl-loop for (key _) on x by #'cddr collect key))
-        (ykeys (cl-loop for (key _) on y by #'cddr collect key)))
-    (and (cl-every (lambda (key)
-                     (let ((xval (cl-getf x key '#:undef))
-                           (yval (cl-getf y key '#:undef)))
-                       (equal xval yval)))
-                   xkeys)
-         (equal (sort xkeys #'string-lessp)
-                (sort ykeys #'string-lessp)))))
+  (and (test-wandbox-plist-member x y)
+       (test-wandbox-plist-member y x)))
+
+(ert-deftest plist-member ()
+  "Test plist-member for test."
+  (should (test-wandbox-plist-member '()
+                                     '()))
+  (should (test-wandbox-plist-member '()
+                                     '(:a 1)))
+  (should (test-wandbox-plist-member '(:a 1)
+                                     '(:a 1)))
+  (should (test-wandbox-plist-member '(:a 1)
+                                     '(:a 1 :b 2)))
+  (should-not (test-wandbox-plist-member '(:a 1)
+                                         '()))
+  (should-not (test-wandbox-plist-member '(:a 1)
+                                         '(:a 2)))
+  (should-not (test-wandbox-plist-member '(:a 1 :b 2)
+                                         '(:a 1)))
+  t)
+
+(ert-deftest plist-equal ()
+  "Test plist-equal for test."
+  (should (test-wandbox-plist-equal '()
+                                    '()))
+  (should (test-wandbox-plist-equal '(:a 1 :b 2 :c 3)
+                                    '(:a 1 :b 2 :c 3)))
+  (should (test-wandbox-plist-equal '(:a 1 :b 2 :c 3)
+                                    '(:c 3 :b 2 :a 1)))
+  (should-not (test-wandbox-plist-equal '(:a 1)
+                                        '(:a 2)))
+  (should-not (test-wandbox-plist-equal '(:a 1 :b 2)
+                                        '(:a 1)))
+  t)
 
 (ert-deftest wandbox:request-data ()
   "Test request data."
@@ -48,8 +79,9 @@
 (ert-deftest wandbox:profiles ()
   "Test valid profile."
   (should (vectorp (wandbox-list-compilers))) ; json array
-  (should (string= (plist-get (wandbox-find-profile :compiler "gcc-head") :compiler)
-                   "gcc-head"))
+  (should (test-wandbox-plist-member
+           '(:name "gcc HEAD" :compiler "gcc-head")
+           (wandbox-find-profile :compiler "gcc-head")))
   t)
 
 (ert-deftest wandbox:response-data ()
@@ -74,23 +106,16 @@
            (wandbox-eval-with (:sync t)
              (loop for i from 0 to 9 collect (* i i)))
            '(("status" . "0")
-             ("program_output" . "\n(0 1 4 9 16 25 36 49 64 81) \n")
-             ("program_message" . "\n(0 1 4 9 16 25 36 49 64 81) \n"))))
-  ;; test file, buffer profile
-  (should (equal
-           (wandbox :file "./test/sample.c" :sync t)
-           '(("status" . "0")
-             ("program_output" . "pi=3.141592654")
-             ("program_message" . "pi=3.141592654"))))
+             ("program_output" . "(0 1 4 9 16 25 36 49 64 81)\n")
+             ("program_message" . "(0 1 4 9 16 25 36 49 64 81)\n"))))
   t)
 
-(ert-deftest wandbox:response-data ()
-  "Test interactive call."
-  (find-file "./test/sample.c")
-  (call-interactively #'wandbox)
-  (sit-for 5)
-  (should (string-match "pi=3.141592654"
-                         (with-current-buffer "*Wandbox Output*" (buffer-string))))
+(ert-deftest buffer-profile ()
+  "Test buffer-profile."
+  (should (test-wandbox-plist-member '(:compiler "clang-3.3-c"
+                                       :compiler-option-raw "-lm")
+                                     (test-wandbox-json-decode
+                                      (wandbox-build-request-data :file "./test/sample.c"))))
   t)
 
 ;;; test-wandbox.el ends here

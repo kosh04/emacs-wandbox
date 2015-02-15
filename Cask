@@ -3,6 +3,8 @@
 
 (package-file "wandbox.el")
 
+(depends-on "json")
+
 (development
  (depends-on "cl-lib")
  (depends-on "ert"))
