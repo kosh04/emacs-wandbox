@@ -119,6 +119,15 @@ Return value will be merged into the old profile.")
             do (plist-put result key value)))
     result))
 
+(defsubst wandbox--pick (plist &rest keys)
+  "Return a new PLIST, filterd to only have values KEYS."
+  (let (obj)
+    (dolist (key keys)
+      (let ((val (plist-get plist key)))
+        (when val
+          (setq obj (plist-put obj key val)))))
+    obj))
+
 (defsubst wandbox--log (format &rest args)
   (let ((msg (apply #'format format args)))
     (setq msg (replace-regexp-in-string "\n" "" msg  nil t)) ; one-line
@@ -161,11 +170,11 @@ It returns
           (setq params (plist-put params key val)))))
     params))
 
-(defun wandbox-fetch-as-profile (src)
-  "Return wandbox profile, contains (:code *SRC ...)."
-  (with-temp-buffer
-    (insert-file-contents src)
-    (plist-put (wandbox-buffer-profile) :code (buffer-string))))
+;; (defun wandbox-fetch-as-profile (src)
+;;   "Return wandbox profile, contains (:code *SRC ...)."
+;;   (with-temp-buffer
+;;     (insert-file-contents src)
+;;     (plist-put (wandbox-buffer-profile) :code (buffer-string))))
 
 (defun wandbox-list-compilers ()
   "Return compilers available in wandbox."
@@ -200,18 +209,15 @@ It returns
                         (return (cdr (assoc "switches" x))))))
           ",")))
 
-(defun* wandbox-build-request-data (&rest profile &key lang name file &allow-other-keys)
-  "Build JSON data to post to Wandox API.
-PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
-  (setq profile
-        (wandbox-merge-plist profile
-                             (if lang (wandbox-find-profile :lang lang))
-                             (if name (wandbox-find-profile :name name))
-                             (if (and file (file-exists-p file))
-                                 (wandbox-fetch-as-profile file))))
-  (dolist (f wandbox-precompiled-hook)
-    (setq profile (wandbox-merge-plist profile (apply f profile))))
+(defsubst wandbox--merge-profile (profile &rest functions)
+  (let ((p (copy-sequence profile)))
+    (dolist (f functions p)
+      (setq p (wandbox-merge-plist p (apply f p))))))
 
+(defun* wandbox-build-request-data-raw (&rest profile
+                                        &key compiler options code stdin save
+                                             compiler-option runtime-option
+                                        &allow-other-keys)
   (labels ((join-as-string (list separator)
              (mapconcat #'(lambda (x) (format "%s" x)) list separator))
            (val (x)
@@ -229,8 +235,7 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                    ("stdin"    . ,(val :stdin))
                    ("compiler-option-raw" . ,(raw :compiler-option))
                    ("runtime-option-raw"  . ,(raw :runtime-option))
-                   ("save" . ,(bool :save))
-                   )))
+                   ("save" . ,(bool :save)))))
       (prog1
           (json-encode alist)
         ;; debug log
@@ -238,9 +243,41 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                    (if (< 20 (length str)) (format "%.20s..." str) str)))
           (dolist (key '("code" "stdin"))
             (setf #1=(cdr (assoc key alist)) (truncate #1#)))
-          (wandbox--log "build request: %s" (json-encode alist))
-          ))
+          (wandbox--log "build request: %s" (json-encode alist))))
       )))
+
+(defun wandbox-build-request-data (&rest profile)
+  "Build JSON data to post to Wandox API.
+PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
+  (let ((other-spec (wandbox--pick
+                     profile ;; copy specified options
+                     :compiler :options :stdin :save
+                     :compiler-option :runtime-option)))
+    ;; NOTE: Order to merge profile
+    ;; 1. expand :file (:gist) to :code
+    ;; 2. expand buffer-profile
+    ;; 3. expand :lang, :name
+    ;; 4. function args :compiler, :options, ...
+    (setq profile (apply #'wandbox--merge-profile profile wandbox-precompiled-hook))
+    (setq profile (wandbox--merge-profile
+                   profile
+                   ;; 1.
+                   (function* (lambda (&key file &allow-other-keys)
+                                (when file `(:code ,(wandbox-fetch file)))))
+                   ;; 2.
+                   (function* (lambda (&key code &allow-other-keys)
+                                (when code (with-temp-buffer
+                                             (insert code)
+                                             (wandbox-buffer-profile)))))
+                   ;; 3.
+                   (function* (lambda (&key lang &allow-other-keys)
+                                (when lang (wandbox-find-profile :lang lang))))
+                   (function* (lambda (&key name &allow-other-keys)
+                                (when name (wandbox-find-profile :name name))))
+                   ;; 4.
+                   (function* (lambda (&rest ignore)
+                                other-spec)))))
+  (apply #'wandbox-build-request-data-raw profile))
 
 (defun wandbox-format-url-buffer (status)
   (declare (special url-http-end-of-headers))
@@ -376,10 +413,10 @@ Compiler profile is determined by file extension."
   (declare (indent 1))
   (let ((print-circle t))
     `(wandbox-compile :name "CLISP"
-                      :code (prin1-to-string
-                             `(let ((*print-circle* t))
-                                (format t "~{~s~^ ;~%~}"
-                                        (multiple-value-list (progn ,@form)))))
+                      :code ,(prin1-to-string
+                              `(let ((*print-circle* t))
+                                 (format t "~{~s~^ ;~%~}"
+                                         (multiple-value-list (progn ,@form)))))
                       ,@options)))
 
 ;;;###autoload
