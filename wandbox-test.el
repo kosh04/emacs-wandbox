@@ -84,4 +84,13 @@
              ("program_message" . "pi=3.141592654"))))
   t)
 
+(ert-deftest wandbox:response-data ()
+  "Test interactive call."
+  (find-file "./test/sample.c")
+  (call-interactively #'wandbox)
+  (sit-for 5)
+  (should (string-match "pi=3.141592654"
+                         (with-current-buffer "*Wandbox Output*" (buffer-string))))
+  t)
+
 ;;; test-wandbox.el ends here

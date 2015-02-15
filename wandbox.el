@@ -4,7 +4,7 @@
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.4.2
+;; Version: 0.4.3
 ;; Package-Requires: ((emacs "24") (json "1.3"))
 ;; Keywords: c, programming, tools
 ;; Created: 2013/11/22
@@ -23,6 +23,7 @@
 
 ;; ## Use Interactive
 ;;
+;; M-x wandbox                - Alias `wandbox-compile-buffer'
 ;; M-x wandbox-compile-file   - Compile with file contents
 ;; M-x wandbox-compile-region - Compile marked region
 ;; M-x wandbox-compile-buffer - Compile current buffer
@@ -42,6 +43,7 @@
 
 ;;; Change Log:
 
+;; 2015/02/15 ver 0.4.3  `wandbox' call interactively.
 ;; 2015/01/09 ver 0.4.2  add buffer profile
 ;; 2014/12/09 ver 0.4.1  add Testing and Cask
 ;; 2014/12/06 ver 0.4.0  profiles are generated from /wandbox/api/list.json
@@ -154,7 +156,7 @@ It returns
                                         (match-beginning 1)
                                         (match-end 1)))))
               (val (buffer-substring-no-properties
-                    (match-beginning 2) 
+                    (match-beginning 2)
                     (match-end 2))))
           (setq params (plist-put params key val)))))
     params))
@@ -291,9 +293,6 @@ If NAME specified, select compiler template from `wandbox-profiles'.
 If FILE specified, compile FILE contents instead of code."
   (wandbox-post (apply #'wandbox-build-request-data profile) :sync sync))
 
-;;;###autoload
-(defalias 'wandbox #'wandbox-compile)
-
 ;; see also: http://developer.github.com/v3/gists/
 (defun wandbox-fetch-gist (id)
   "Fetch a single gist from ID."
@@ -365,13 +364,37 @@ Compiler profile is determined by file extension."
   (wandbox-compile-region (point-min) (point-max)))
 
 ;;;###autoload
+(defun wandbox (&rest args)
+  (interactive)
+  (if (called-interactively-p 'any)
+      (call-interactively #'wandbox-compile-buffer)
+      (apply #'wandbox-compile args)))
+
+;;;###autoload
 (defmacro* wandbox-eval-with ((&rest options) &body form)
   "Evaluate FORM as S-expression."
   (declare (indent 1))
   (let ((print-circle t))
     `(wandbox-compile :name "CLISP"
-                      :code ,(prin1-to-string `(print (progn ,@form)))
+                      :code (prin1-to-string
+                             `(let ((*print-circle* t))
+                                (format t "~{~s~^ ;~%~}"
+                                        (multiple-value-list (progn ,@form)))))
                       ,@options)))
+
+;;;###autoload
+(defun wandbox-eval-last-sexp ()
+  "Evaluate last S-expression at point."
+  (interactive)
+  (let ((form (buffer-substring (progn (backward-sexp) (point))
+                                (progn (forward-sexp) (point)))))
+    (wandbox-compile :name "CLISP"
+                     :code (format
+                            "(let ((*print-circle* t))
+                               (format t \"~{~s~^ ;~%%~}\" (multiple-value-list %s)))"
+                            form))))
+
+;; (global-set-key (kbd "C-c w e") #'wandbox-eval-last-sexp)
 
 (defun wandbox-tweet (url)
   (browse-url (concat "https://twitter.com/intent/tweet?text=Wandbox&url="
