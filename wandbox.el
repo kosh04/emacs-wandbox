@@ -129,9 +129,20 @@ Return value will be merged into the old profile.")
     obj))
 
 (defsubst wandbox--log (format &rest args)
-  (let ((msg (apply #'format format args)))
-    (setq msg (replace-regexp-in-string "\n" "" msg  nil t)) ; one-line
-    (message "Wandbox: %s" msg)))
+  (labels ((truncate (obj)
+             (typecase obj
+               (string (if (< 20 (length obj))
+                           (format "%.20s..." obj)
+                           obj))
+               (list (if (listp (car obj))
+                         ;; assoc
+                         (loop for (key . value) in obj
+                               collect (cons key (truncate value)))
+                         obj))
+               (t obj))))
+    (let ((msg (apply #'format format (mapcar #'truncate args))))
+      (setq msg (replace-regexp-in-string "\n" "" msg  nil t)) ; one-line
+      (message "Wandbox: %s" msg))))
 
 (defun wandbox-make-profiles ()
   "Generate profiles from `wandbox-compilers'."
@@ -229,22 +240,13 @@ It returns
                (if (consp v) (join-as-string v "\n") v))))
     (unless (wandbox-compiler-exist-p (val :compiler))
       (error "Unknown compiler: %s" (val :compiler)))
-    (let ((alist `(("compiler" . ,(val :compiler))
-                   ("options"  . ,(val :options))
-                   ("code"     . ,(val :code))
-                   ("stdin"    . ,(val :stdin))
-                   ("compiler-option-raw" . ,(raw :compiler-option))
-                   ("runtime-option-raw"  . ,(raw :runtime-option))
-                   ("save" . ,(bool :save)))))
-      (prog1
-          (json-encode alist)
-        ;; debug log
-        (labels ((truncate (str)
-                   (if (< 20 (length str)) (format "%.20s..." str) str)))
-          (dolist (key '("code" "stdin"))
-            (setf #1=(cdr (assoc key alist)) (truncate #1#)))
-          (wandbox--log "build request: %s" (json-encode alist))))
-      )))
+    `(("compiler" . ,(val :compiler))
+      ("options"  . ,(val :options))
+      ("code"     . ,(val :code))
+      ("stdin"    . ,(val :stdin))
+      ("compiler-option-raw" . ,(raw :compiler-option))
+      ("runtime-option-raw"  . ,(raw :runtime-option))
+      ("save" . ,(bool :save)))))
 
 (defun wandbox-build-request-data (&rest profile)
   "Build JSON data to post to Wandox API.
@@ -270,10 +272,10 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                                              (insert code)
                                              (wandbox-buffer-profile)))))
                    ;; 3.
-                   (function* (lambda (&key lang &allow-other-keys)
-                                (when lang (wandbox-find-profile :lang lang))))
                    (function* (lambda (&key name &allow-other-keys)
                                 (when name (wandbox-find-profile :name name))))
+                   (function* (lambda (&key lang &allow-other-keys)
+                                (when lang (wandbox-find-profile :lang lang))))
                    ;; 4.
                    (function* (lambda (&rest ignore)
                                 other-spec)))))
@@ -305,11 +307,12 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
            (wandbox--log "Compile...done"))
       (kill-buffer buf))))
 
-(defun* wandbox-post (json &key (sync nil))
+(defun* wandbox-post (object &key (sync nil))
   "Request compile api with JSON data."
+  (wandbox--log "send request: %S" object)
   (let ((url-request-method "POST")
         (url-request-extra-headers '(("Content-Type" . "application/json")))
-        (url-request-data json))
+        (url-request-data (json-encode object)))
     (if sync
         (wandbox-json-load #1="http://melpon.org/wandbox/api/compile.json")
         (progn
