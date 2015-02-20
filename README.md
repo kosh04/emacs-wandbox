@@ -26,8 +26,9 @@ Common Lisp, and more.
 Installation
 ------------
 
-Install wandbox.el into your `load-path` directory.
-and put `(require 'wandbox)` into your `.emacs`.
+1. Install wandbox.el into your `load-path` directory.
+   or `M-x package-install wandbox` if Emacs 24+.
+2. and put `(require 'wandbox)` into your `.emacs`.
 
 
 References
@@ -35,15 +36,15 @@ References
 
 ### Command
 
+* `wandbox`                          - Alias of `wandbox-compile-buffer`
 * `wandbox-compile-file (filename)`  - Compile with file contents
 * `wandbox-compile-region (from to)` - Compile marked region
 * `wandbox-compile-buffer ()`        - Compile with current buffer
 
 ### Function
 
+* `wandbox` - Alias of `wandbox-compile`
 * `wandbox-compile (&rest profile &key compiler options code stdin compiler-option runtime-option lang name file save)`
-
-  Note: `wandbox` is an alias definition.
 
   Run wandbox compile with detailed options.
   arguments `compiler`, `options`, `code`, `compiler-option`, `runtime-option`,
