@@ -23,6 +23,7 @@ Wandbox は @melponn と @kikairoya が開発したオンラインコンパイ�
 ------------
 
 wandbox.el を拾ってきてロードして下さい。
+Emacs24 以上ならば `M-x package-install wandbox` でもインストール出来ます。
 
 適当なファイルを開いて M-x `wandbox-compile-buffer` を実行すると
 実行結果が Wandbox Output バッファに表示されます。
@@ -34,6 +35,10 @@ wandbox.el を拾ってきてロードして下さい。
 ------------
 
 ### コマンド
+
+* `wandbox ()`
+
+  `wandbox-compile-buffer` を呼び出します。
 
 * `wandbox-compile-file (filename)`
 
@@ -50,10 +55,13 @@ wandbox.el を拾ってきてロードして下さい。
 
 ### 関数
 
+* `wandbox`
+
+  `wandbox-compile` を呼び出します。
+
 * `wandbox-compile (&rest profile &key compiler options code stdin compiler-option runtime-option lang name file save)`
 
   コンパイラやオプションなどを直接指定してコンパイルします。
-  `wandbox` は `wandbox-compile` のエイリアスです。
   引数 `compiler`, `options`, `code`, `stdin`, `compiler-option`, `runtime-option` は
   Wandbox API に渡すための文字列パラメータを指定します。
   `compiler-option`, `runtime-option` はリスト形式で指定することもできます。
