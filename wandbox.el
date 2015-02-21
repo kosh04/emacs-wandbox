@@ -5,7 +5,7 @@
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
 ;; Version: 0.4.3
-;; Package-Requires: ((emacs "24") (json "1.3"))
+;; Package-Requires: ((emacs "24") (cl-lib "0.5") (json "1.3"))
 ;; Keywords: c, programming, tools
 ;; Created: 2013/11/22
 ;; License: MIT License (see LICENSE)
@@ -57,8 +57,9 @@
 
 (eval-when-compile
   (require 'cl))
-(require 'url-http)
+(require 'cl-lib)
 (require 'json)
+(require 'url-http)
 
 (defvar wandbox-profiles nil
   "Wandbox copmiler profiles (set of plist).")
@@ -129,17 +130,17 @@ Return value will be merged into the old profile.")
     obj))
 
 (defsubst wandbox--log (format &rest args)
-  (labels ((truncate (obj)
-             (typecase obj
-               (string (if (< 20 (length obj))
-                           (format "%.20s..." obj)
-                           obj))
-               (list (if (listp (car obj))
-                         ;; assoc
-                         (loop for (key . value) in obj
+  (cl-labels ((truncate (obj)
+                (typecase obj
+                  (string (if (< 20 (length obj))
+                              (format "%.20s..." obj)
+                              obj))
+                  (list (if (listp (car obj))
+                            ;; assoc
+                            (loop for (key . value) in obj
                                collect (cons key (truncate value)))
-                         obj))
-               (t obj))))
+                            obj))
+                  (t obj))))
     (let ((msg (apply #'format format (mapcar #'truncate args))))
       (setq msg (replace-regexp-in-string "\n" "" msg  nil t)) ; one-line
       (message "Wandbox: %s" msg))))
@@ -206,10 +207,10 @@ It returns
 
 (defun wandbox-default-compiler-options (compiler)
   "Return the COMPILER default option."
-  (labels ((mapcan (fn list &rest more-list)
-             (apply #'nconc (apply #'mapcar fn list more-list)))
-           (join (list separator)
-             (mapconcat #'identity list separator)))
+  (cl-labels ((mapcan (fn list &rest more-list)
+                (apply #'nconc (apply #'mapcar fn list more-list)))
+              (join (list separator)
+                (mapconcat #'identity list separator)))
     (join (mapcan (lambda (o)
                     (let ((x (or (cdr (assoc "default" o)) "")))
                       (cond ((stringp x) (list x))
@@ -229,15 +230,15 @@ It returns
                                         &key compiler options code stdin save
                                              compiler-option runtime-option
                                         &allow-other-keys)
-  (labels ((join-as-string (list separator)
-             (mapconcat #'(lambda (x) (format "%s" x)) list separator))
-           (val (x)
-             (or (plist-get profile x) ""))
-           (bool (x)
-             (if (plist-get profile x) t :json-false))
-           (raw (x)
-             (let ((v (val x)))
-               (if (consp v) (join-as-string v "\n") v))))
+  (cl-labels ((join-as-string (list separator)
+                (mapconcat #'(lambda (x) (format "%s" x)) list separator))
+              (val (x)
+                (or (plist-get profile x) ""))
+              (bool (x)
+                (if (plist-get profile x) t :json-false))
+              (raw (x)
+                (let ((v (val x)))
+                  (if (consp v) (join-as-string v "\n") v))))
     (unless (wandbox-compiler-exist-p (val :compiler))
       (error "Unknown compiler: %s" (val :compiler)))
     `(("compiler" . ,(val :compiler))
