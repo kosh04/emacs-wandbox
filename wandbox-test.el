@@ -11,51 +11,50 @@
 (require 'cl-lib)
 
 ;; test assoc
-(defun wandbox-test-alist-member (x y)
-  (cl-check-type x list)
-  (cl-check-type y list)
-  (cl-loop for (key . value) in x
-           always (equal value (cdr (assoc key y)))))
+(defun wandbox-test-alist-subsetp (aitem alist)
+  (cl-check-type aitem list)
+  (cl-check-type alist list)
+  (cl-loop for (key . value) in aitem
+           always (equal value (cdr (assoc key alist)))))
 
 (defun wandbox-test-alist-equal (x y)
-  (and (alist-member x y)
-       (alist-member y x)))
+  (and (wandbox-test-alist-subsetp x y)
+       (wandbox-test-alist-subsetp y x)))
 
 ;; test plist
-(defun wandbox-test-plist-member (pitem plist)
+(defun wandbox-test-plist-subsetp (pitem plist)
   (cl-check-type pitem list)
   (cl-check-type plist list)
   (cl-loop for (key value) on pitem by #'cddr
            always (equal value (cl-getf plist key))))
 
 (defun wandbox-test-plist-equal (x y)
-  (and (wandbox-test-plist-member x y)
-       (wandbox-test-plist-member y x)))
+  (and (wandbox-test-plist-subsetp x y)
+       (wandbox-test-plist-subsetp y x)))
 
-;; FIXME: `plist-member' is a built-in function
-(defalias 'alist-member  'wandbox-test-alist-member)
+(defalias 'alist-subsetp  'wandbox-test-alist-subsetp)
 (defalias 'alist-equal   'wandbox-test-alist-equal)
-(defalias 'plist-member* 'wandbox-test-plist-member)
+(defalias 'plist-subsetp 'wandbox-test-plist-subsetp)
 (defalias 'plist-equal   'wandbox-test-plist-equal)
 
-(ert-deftest wandbox-test-alist-member ()
-  "Test alist-member for test."
-  (should (alist-member '()
-                        '()))
-  (should (alist-member '()
-                        '((a . 10))))
-  (should (alist-member '((a . 10))
-                        '((a . 10))))
-  (should (alist-member '(("a" . 10))
-                        '(("a" . 10))))
-  (should (alist-member '((a . 10))
-                        '((a . 10) (b . 10))))
-  (should (alist-member '((a . 10))
-                        '((b . 10) (a . 10) (c . 30))))
-  (should-not (alist-member '((a . 10))
-                            '()))
-  (should-not (alist-member '((a . 10) (b . 10))
-                            '((a . 10))))
+(ert-deftest wandbox-test-alist-subsetp ()
+  "Test alist-subsetp for test."
+  (should (alist-subsetp '()
+                         '()))
+  (should (alist-subsetp '()
+                         '((a . 10))))
+  (should (alist-subsetp '((a . 10))
+                         '((a . 10))))
+  (should (alist-subsetp '(("a" . 10))
+                         '(("a" . 10))))
+  (should (alist-subsetp '((a . 10))
+                         '((a . 10) (b . 10))))
+  (should (alist-subsetp '((a . 10))
+                         '((b . 10) (a . 10) (c . 30))))
+  (should-not (alist-subsetp '((a . 10))
+                             '()))
+  (should-not (alist-subsetp '((a . 10) (b . 10))
+                             '((a . 10))))
   t)
 
 (ert-deftest wandbox-test-alist-equal ()
@@ -67,21 +66,21 @@
                            '((a . 10) (b . 20))))
   t)
 
-(ert-deftest wandbox-test-plist-member ()
-  "Test plist-member for test."
-  (should (plist-member* '()
+(ert-deftest wandbox-test-plist-subsetp ()
+  "Test plist-subsetp for test."
+  (should (plist-subsetp '()
                          '()))
-  (should (plist-member* '()
+  (should (plist-subsetp '()
                          '(:a 1)))
-  (should (plist-member* '(:a 1)
+  (should (plist-subsetp '(:a 1)
                          '(:a 1)))
-  (should (plist-member* '(:a 1)
+  (should (plist-subsetp '(:a 1)
                          '(:a 1 :b 2)))
-  (should-not (plist-member* '(:a 1)
+  (should-not (plist-subsetp '(:a 1)
                              '()))
-  (should-not (plist-member* '(:a 1)
+  (should-not (plist-subsetp '(:a 1)
                              '(:a 2)))
-  (should-not (plist-member* '(:a 1 :b 2)
+  (should-not (plist-subsetp '(:a 1 :b 2)
                              '(:a 1)))
   t)
 
@@ -144,28 +143,30 @@
   t)
 
 (ert-deftest wandbox-find-profile ()
-  (should (plist-member* '(:lang "C++" :name "gcc HEAD" :compiler "gcc-head")
+  (should (plist-subsetp '(:lang "C++"
+                           :name "gcc HEAD"
+                           :compiler "gcc-head")
                          (wandbox-find-profile :compiler "gcc-head")))
   t)
 
 (ert-deftest wandbox-build-request-data ()
   "Test request data."
-  (should (alist-member '(("compiler" . "gcc-4.8.2-c")
-                          ("options" . "warning,c11")
-                          ("code" . "main(){}"))
-                        (wandbox-build-request-data :lang "C"
-                                                    :code "main(){}")))
+  (should (alist-subsetp '(("compiler" . "gcc-4.8.2-c")
+                           ("options" . "warning,c11")
+                           ("code" . "main(){}"))
+                         (wandbox-build-request-data :lang "C"
+                                                     :code "main(){}")))
   t)
 
 (ert-deftest wandbox-test-buffer-profile ()
   "Test buffer-profile."
-  (should (alist-member '(("compiler" . "clang-3.3-c")
-                          ("compiler-option-raw" . "-lm"))
-                        (wandbox-build-request-data :file "./test/sample.c")))
-  (should (alist-member '(("compiler" . "gcc-head")
-                          ("compiler-option-raw" . "-lm"))
-                        (wandbox-build-request-data :file "./test/sample.c"
-                                                    :compiler "gcc-head")))
+  (should (alist-subsetp '(("compiler" . "clang-3.3-c")
+                           ("compiler-option-raw" . "-lm"))
+                         (wandbox-build-request-data :file "./test/sample.c")))
+  (should (alist-subsetp '(("compiler" . "gcc-head")
+                           ("compiler-option-raw" . "-lm"))
+                         (wandbox-build-request-data :file "./test/sample.c"
+                                                     :compiler "gcc-head")))
   t)
 
 (ert-deftest wandbox-compile ()
