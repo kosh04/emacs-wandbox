@@ -15,7 +15,7 @@ What is Wandbox ?
 Wandbox is online compiler/interpreter.
 Developed by @melponn and @kikairoya.
 
-You can try various programming language sush as C, C++, D, Haskell,
+You can try various programming language such as C, C++, D, Haskell,
 Perl, Python, Ruby, PHP, Erlang, Java, JavaScript, CoffeeScript Rust,
 Common Lisp, and more.
 
@@ -48,7 +48,7 @@ References
 * `wandbox-compile-file (filename)`  - Compile with file contents
 * `wandbox-compile-region (from to)` - Compile marked region
 * `wandbox-compile-buffer ()`        - Compile with current buffer
-* `wandbox-list-compilers ()`        - Display available copilers
+* `wandbox-list-compilers ()`        - Display available compilers
 
 ### Function
 
@@ -89,7 +89,7 @@ Example
 ```
 
 ```elisp
-;; Multiple copmile
+;; Multiple compile
 (wandbox :profiles [(:name "php HEAD") (:name "php")] :code "<? echo phpversion();")
 ```
 
