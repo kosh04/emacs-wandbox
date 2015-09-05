@@ -30,11 +30,13 @@ Installation
    or `M-x package-install wandbox` if Emacs 24+.
 2. and put `(require 'wandbox)` into your `.emacs`.
 
-    ;; .emacs sample
-    (require 'wandbox)
-    (global-set-key (kbd "C-c w w") 'wandbox)
-    (global-set-key (kbd "C-c w e") 'wandbox-eval-last-sexp)
-    (global-set-key (kbd "C-c w l") 'wandbox-list-compilers)
+```elisp
+;; .emacs sample
+(require 'wandbox)
+(global-set-key (kbd "C-c w w") 'wandbox)
+(global-set-key (kbd "C-c w e") 'wandbox-eval-last-sexp)
+(global-set-key (kbd "C-c w l") 'wandbox-list-compilers)
+```
 
 
 References
