@@ -4,7 +4,7 @@
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.5
+;; Version: 0.5.1
 ;; Package-Requires: ((emacs "24") (json "1.3") (tabulated-list "1.0"))
 ;; Keywords: c, programming, tools
 ;; Created: 2013/11/22
@@ -302,9 +302,10 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
     (println "## %s" (cdr (assoc "compiler" object)))
     (dolist (res wandbox-response-keywords)
       (when (assoc res result)
-        (println "* %s" (car (assoc res result)))
+        (println "* [%s]" (car (assoc res result)))
         (println "%s" (cdr (assoc res result)))))
-    (println "")))
+    (println ""))
+  result)
 
 (defun wandbox-format-url-buffer (status &optional args)
   (declare (special url-http-end-of-headers))
@@ -340,11 +341,12 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
 (defun wandbox-post* (object other-objects)
   ;;(plist-put object :profiles nil)
   (with-output-to-temp-buffer wandbox-output-buffer
-    (mapc #'(lambda (o)
-              (let ((p (apply #'wandbox-build-request-data
-                              (wandbox-merge-plist o object))))
-                (wandbox--dump p (wandbox-post p :sync t))))
-          other-objects)))
+    (cl-map 'vector
+            #'(lambda (o)
+                (let* ((p (apply #'wandbox-build-request-data
+                                 (wandbox-merge-plist o object))))
+                  (wandbox--dump p (wandbox-post p :sync t))))
+            other-objects)))
 
 ;;;###autoload
 (defun* wandbox-compile (&rest profile

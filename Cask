@@ -5,6 +5,7 @@
 
 (depends-on "cl-lib")
 (depends-on "json")
+(depends-on "tabulated-list")
 
 (development
  (depends-on "ert"))
