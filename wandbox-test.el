@@ -134,6 +134,10 @@
              ("compiler-option-raw" . "")
              ("runtime-option-raw" . "")
              ("save" . :json-false))))
+  (should (alist-subsetp '(("compiler" . "ruby-head"))
+                         (wandbox-build-request-data :name "ruby HEAD")))
+  (should (alist-subsetp '(("compiler" . "mruby-head"))
+                         (wandbox-build-request-data :name "mruby HEAD")))
   (should-error
    (wandbox-build-request-data :compiler "unknown"))
   t)
