@@ -10,6 +10,8 @@ env:
 
 addons:
   apt:
+    sources:
+      - cassou-emacs
     packages:
       - emacs24
 
