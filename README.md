@@ -15,7 +15,7 @@ What is Wandbox ?
 Wandbox is online compiler/interpreter.
 Developed by @melponn and @kikairoya.
 
-You can try various programming language sush as C, C++, D, Haskell,
+You can try various programming language such as C, C++, D, Haskell,
 Perl, Python, Ruby, PHP, Erlang, Java, JavaScript, CoffeeScript Rust,
 Common Lisp, and more.
 
@@ -30,6 +30,14 @@ Installation
    or `M-x package-install wandbox` if Emacs 24+.
 2. and put `(require 'wandbox)` into your `.emacs`.
 
+```elisp
+;; .emacs sample
+(require 'wandbox)
+(global-set-key (kbd "C-c w w") 'wandbox)
+(global-set-key (kbd "C-c w e") 'wandbox-eval-last-sexp)
+(global-set-key (kbd "C-c w l") 'wandbox-list-compilers)
+```
+
 
 References
 ----------
@@ -40,6 +48,7 @@ References
 * `wandbox-compile-file (filename)`  - Compile with file contents
 * `wandbox-compile-region (from to)` - Compile marked region
 * `wandbox-compile-buffer ()`        - Compile with current buffer
+* `wandbox-list-compilers ()`        - Display available compilers
 
 ### Function
 
@@ -75,8 +84,13 @@ Example
 ```
 
 ```elisp
-;; use standard-input
+;; Use standard-input
 (wandbox :lang "Perl" :code "while (<>) { print uc($_); }" :stdin "hello")
+```
+
+```elisp
+;; Multiple compile
+(wandbox :profiles [(:name "php HEAD") (:name "php")] :code "<? echo phpversion();")
 ```
 
 ```elisp
@@ -108,10 +122,12 @@ TODO
 - [x] add merge-plist
 - [ ] configure response-data
 - [x] handle gist snippet as code
-- [ ] multiple profiles (e.g. compare gcc/clang)
+- [x] multiple profiles (e.g. compare gcc/clang)
 - [ ] easy setting for compiler-options
 - [ ] require request.el
 - [x] auto generated profile (#2)
+- [ ] use multiple files
+- [ ] use other wandbox clone (#3)
 
 
 License

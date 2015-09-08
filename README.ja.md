@@ -54,6 +54,10 @@ Emacs24 以上ならば `M-x package-install wandbox` でもインストール�
 
   現在のバッファをコンパイルします。
 
+* `wandbox-list-compilers ()`
+
+  利用可能なコンパイラ一覧を表示します。
+
 ### 関数
 
 * `wandbox`
@@ -107,6 +111,11 @@ Example
 ```
 
 ```elisp
+;; 複数プロファイルを利用する
+(wandbox :profiles [(:name "php HEAD") (:name "php")] :code "<? echo phpversion();")
+```
+
+```elisp
 ;; 独自プロファイルを追加する
 (add-to-list 'wandbox-profiles '(:name "ANSI C" :compiler "clang-head" :options "warning,c89"))
 (wandbox :name "ANSI C" :file "/path/to/prog.c")
@@ -135,10 +144,13 @@ TODO
 - [x] add merge-plist
 - [ ] コンパイル結果のデータをユーザが弄れるようにする
 - [x] gist などのコード片を扱えるようにする
-- [ ] 複数プロファイルの指定
+- [x] 複数プロファイルの指定
 - [ ] コンパイラの設定を簡単にしたい
 - [ ] request.el を利用する (ただし依存関係が増える)
 - [x] プロファイルの自動生成 (#2)
+- [ ] 複数ファイルを扱う
+- [ ] 別ドメインのWandboxクローンを利用する (#3)
+
 
 ライセンス
 ----------

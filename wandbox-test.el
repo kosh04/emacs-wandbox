@@ -32,7 +32,7 @@
   (and (wandbox-test-plist-subsetp x y)
        (wandbox-test-plist-subsetp y x)))
 
-(defalias 'alist-subsetp  'wandbox-test-alist-subsetp)
+(defalias 'alist-subsetp 'wandbox-test-alist-subsetp)
 (defalias 'alist-equal   'wandbox-test-alist-equal)
 (defalias 'plist-subsetp 'wandbox-test-plist-subsetp)
 (defalias 'plist-equal   'wandbox-test-plist-equal)
@@ -134,12 +134,16 @@
              ("compiler-option-raw" . "")
              ("runtime-option-raw" . "")
              ("save" . :json-false))))
+  (should (alist-subsetp '(("compiler" . "ruby-head"))
+                         (wandbox-build-request-data :name "ruby HEAD")))
+  (should (alist-subsetp '(("compiler" . "mruby-head"))
+                         (wandbox-build-request-data :name "mruby HEAD")))
   (should-error
    (wandbox-build-request-data :compiler "unknown"))
   t)
 
-(ert-deftest wandbox-list-compilers ()
-  (should (vectorp (wandbox-list-compilers))) ; json array
+(ert-deftest wandbox-compilers ()
+  (should (vectorp (wandbox-compilers))) ; json array
   t)
 
 (ert-deftest wandbox-find-profile ()
@@ -180,6 +184,14 @@
              ("program_message" . "HELLO")
              ("program_error" . "HELLO"))
            (wandbox :lang "perl" :code "while (<>) { print STDERR uc($_); }" :stdin "hello" :sync t)))
+  ;; multiple compile
+  (should (cl-every #'(lambda (result)
+                        (alist-equal '(("status" . "0")) result))
+                    (wandbox :profiles [(:name "gcc HEAD")
+                                        (:name "gcc")
+                                        (:name "clang HEAD")
+                                        (:name "clang")]
+                             :code "int main(){ return 0; }")))
   ;; test gist snippet
   (should (alist-equal
            '(("status" . "0")
@@ -194,5 +206,8 @@
            (wandbox-eval-with (:sync t)
              (loop for i from 0 to 9 collect (* i i)))))
   t)
+
+(ert-deftest wandbox-list-compilers ()
+  (should (wandbox-list-compilers)))
 
 ;;; test-wandbox.el ends here
