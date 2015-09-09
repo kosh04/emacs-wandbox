@@ -5,7 +5,6 @@ sudo: false
 env:
   matrix:
     - EMACS=emacs24
-    - EMACS=emacs-snapshot
   global:
     - CASK=$HOME/.cask/bin/cask
 
@@ -13,10 +12,8 @@ addons:
   apt:
     sources:
       - cassou-emacs
-      - ubuntu-elisp
     packages:
       - emacs24
-      - emacs-snapshot
 
 before_install:
   - curl -fsSkL https://raw.github.com/cask/cask/master/go | python
