@@ -4,8 +4,8 @@
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.5.1
-;; Package-Requires: ((emacs "24") (json "1.3") (tabulated-list "1.0"))
+;; Version: 0.5.2
+;; Package-Requires: ((emacs "24") (cl-lib "0.5") (json "1.3") (request-deferred "0.2.0") (tabulated-list "1.0"))
 ;; Keywords: c, programming, tools
 ;; Created: 2013/11/22
 ;; License: MIT License (see LICENSE)
@@ -39,12 +39,14 @@
 ;; (wandbox :lang "perl" :code "while (<>) { print uc($_); }" :stdin "hello")
 ;; (wandbox :lang "ruby" :code "p ARGV" :runtime-option '("1" "2" "3"))
 ;; (wandbox :profiles [(:name "php HEAD") (:name "php")] :code "<? echo phpversion();")
+;; (wandbox :profiles [(:name "ruby HEAD") (:name "ruby") (:name "mruby HEAD")] :code "puts RUBY_VERSION")
 ;;
 ;; (add-to-list 'wandbox-profiles '(:name "User Profile" :compiler "clang-head"))
 ;; (wandbox-compile :name "User Profile" :code "...")
 
 ;;; Change Log:
 
+;; 2015-xx-xx ver 0.5.5  require request-deferred
 ;; 2015-09-05 ver 0.5.0  multiple compile, list compilers, markdown colorize (optional)
 ;; 2015/02/15 ver 0.4.3  `wandbox' can call interactively
 ;; 2015/01/09 ver 0.4.2  add `#wandbox' buffer profile
@@ -63,6 +65,7 @@
 (require 'cl-lib)
 (require 'json)
 (require 'url-http)
+(require 'request-deferred)
 (require 'tabulated-list)
 
 (defvar wandbox-profiles nil
@@ -118,12 +121,12 @@ Return value will be merged into the old profile.")
     (wandbox-json-load "http://melpon.org/wandbox/api/list.json"))
   )
 
-(defun wandbox-merge-plist (&rest args)
-  "Merge all the given ARGS into a new plist (destructive)."
-  (let ((result (car args)))
+(defsubst wandbox-merge-plist (&rest args)
+  "Merge all the given ARGS into a new plist."
+  (let ((result (copy-sequence (car args)))) ; XXX better than destructive?
     (dolist (plist (cdr args))
       (loop for (key value) on plist by #'cddr
-            do (plist-put result key value)))
+            do (setq result (plist-put result key value))))
     result))
 
 (defsubst wandbox--pick (plist &rest keys)
@@ -227,11 +230,6 @@ It returns
                         (return (cdr (assoc "switches" x))))))
           ",")))
 
-(defsubst wandbox--merge-profile (profile &rest functions)
-  (let ((p (copy-sequence profile)))
-    (dolist (f functions p)
-      (setq p (wandbox-merge-plist p (apply f p))))))
-
 (defun* wandbox-build-request-data-raw (&rest profile
                                         &key compiler options code stdin save
                                              compiler-option runtime-option
@@ -258,33 +256,37 @@ It returns
 (defun wandbox-build-request-data (&rest profile)
   "Build JSON data to post to Wandox API.
 PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
-  (let ((other-spec (wandbox--pick
-                     profile ;; copy specified options
-                     :compiler :options :stdin :save
-                     :compiler-option :runtime-option)))
-    ;; NOTE: Order to merge profile
-    ;; 1. expand :file (:gist) to :code
-    ;; 2. expand buffer-profile
-    ;; 3. expand :name, :lang
-    ;; 4. function args :compiler, :options, ...
-    (setq profile (apply #'wandbox--merge-profile profile wandbox-precompiled-hook))
-    (setq profile (wandbox--merge-profile
-                   profile
-                   ;; 1.
-                   (function* (lambda (&key file &allow-other-keys)
-                                (when file `(:code ,(wandbox-fetch file)))))
-                   ;; 2.
-                   (function* (lambda (&key code &allow-other-keys)
-                                (when code (with-temp-buffer
-                                             (insert code)
-                                             (wandbox-buffer-profile)))))
-                   ;; 3.
-                   (function* (lambda (&key name lang &allow-other-keys)
-                                (cond (name (wandbox-find-profile :name name))
-                                      (lang (wandbox-find-profile :lang lang)))))
-                   ;; 4.
-                   (function* (lambda (&rest ignore)
-                                other-spec)))))
+  (cl-labels ((fold-profile (profile &rest functions)
+                (let ((p (copy-sequence profile)))
+                  (dolist (f functions p)
+                    (setq p (wandbox-merge-plist p (apply f p)))))))
+    (let ((other-spec (wandbox--pick
+                       profile ;; copy specified options
+                       :compiler :options :stdin :save
+                       :compiler-option :runtime-option)))
+      ;; NOTE: Order to merge profile
+      ;; 1. expand :file (:gist) to :code
+      ;; 2. expand buffer-profile
+      ;; 3. expand :name, :lang
+      ;; 4. function args :compiler, :options, ...
+      (setq profile (apply #'fold-profile profile wandbox-precompiled-hook))
+      (setq profile (fold-profile
+                     profile
+                     ;; 1.
+                     (function* (lambda (&key file &allow-other-keys)
+                                  (when file `(:code ,(wandbox-fetch file)))))
+                     ;; 2.
+                     (function* (lambda (&key code &allow-other-keys)
+                                  (when code (with-temp-buffer
+                                               (insert code)
+                                               (wandbox-buffer-profile)))))
+                     ;; 3.
+                     (function* (lambda (&key name lang &allow-other-keys)
+                                  (cond (name (wandbox-find-profile :name name))
+                                        (lang (wandbox-find-profile :lang lang)))))
+                     ;; 4.
+                     (function* (lambda (&rest ignore)
+                                  other-spec))))))
   (apply #'wandbox-build-request-data-raw profile))
 
 (defun wandbox--setup-markdown-font-lock ()
@@ -309,11 +311,11 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
 
 (defun wandbox-format-url-buffer (status &optional args)
   (declare (special url-http-end-of-headers))
-  (let ((buf (current-buffer)))
+  (let ((buf (current-buffer))
+        (err (plist-get status :error)))
     (unwind-protect
          (progn
-           (when (equal (car status) :error)
-             (error "Return HTTP error: %s" (cdr status)))
+           (if err (signal (car err) (cdr err)))
            (let* ((http-body (decode-coding-string
                               (buffer-substring (1+ url-http-end-of-headers) (point-max))
                               'utf-8-unix))
@@ -354,16 +356,46 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                          compiler options code stdin
                          compiler-option runtime-option
                          lang name file
-                         (profiles [])
+                         (profiles [()])
                          (save nil)
                          (sync nil)
                          &allow-other-keys)
   "Compile CODE as COMPILER's source code.
 If NAME specified, select compiler template from `wandbox-profiles'.
 If FILE specified, compile FILE contents instead of code."
-  (if (/= (length profiles) 0)
-      (wandbox-post* profile profiles)
-      (wandbox-post (apply #'wandbox-build-request-data profile) :sync sync)))
+  (cl-labels ((post* (objects &optional sync)
+                (cl-map 'vector
+                        #'(lambda (object)
+                            (wandbox-post (apply #'wandbox-build-request-data object) :sync sync))
+                        objects))
+              (merge-profiles (profile profiles)
+                (cl-map 'vector
+                        #'(lambda (p)
+                            (wandbox-merge-plist profile p))
+                        profiles)))
+    (let ((profiles* (merge-profiles profile profiles)))
+    (if sync
+        (post* profiles* t)
+        (deferred:$
+          (apply #'deferred:parallel
+                 (mapcar #'(lambda (profile)
+                             `(lambda ()
+                                (let ((data (apply #'wandbox-build-request-data ',profile)))
+                                  (wandbox--log "Send request %S" data)
+                                  (request-deferred
+                                   "http://melpon.org/wandbox/api/compile.json"
+                                   :type "POST"
+                                   :headers '(("Content-Type" . "application/json"))
+                                   :data (json-encode data)
+                                   :parser #'(lambda () (let ((json-key-type 'string)) (json-read)))))))
+                         profiles*))
+          (deferred:nextc it
+            #'(lambda (response)
+                (with-output-to-temp-buffer wandbox-output-buffer
+                  (loop for res in response
+                        do (wandbox--dump (wandbox-json-read
+                                           (plist-get (request-response-settings res) :data))
+                                          (request-response-data res)))))))))))
 
 ;; see also: http://developer.github.com/v3/gists/
 (defun wandbox-fetch-gist (id)
@@ -437,6 +469,7 @@ Compiler profile is determined by file extension."
 
 ;;;###autoload
 (defun wandbox (&rest args)
+  "Compile code snippet with wandbox."
   (interactive)
   (if (called-interactively-p 'any)
       (if (use-region-p)

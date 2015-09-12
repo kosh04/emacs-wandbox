@@ -104,6 +104,8 @@
                        nil))
   (should (plist-equal (wandbox-merge-plist '(:a 1))
                        '(:a 1)))
+  (should (plist-equal (wandbox-merge-plist '() '(:a 1))
+                       '(:a 1)))
   (should (plist-equal (wandbox-merge-plist '(:a 1 :b 2)
                                             '(:a 9)
                                             '(:c 3))
@@ -175,15 +177,20 @@
 
 (ert-deftest wandbox-compile ()
   "Test compile."
-  (should (alist-equal
-           '(("status" . "0"))
-           (wandbox :compiler "gcc-head" :code "int main(){}" :sync t)))
+  (should (cl-every #'(lambda (result)
+                      (alist-equal result '(("status" . "0"))))
+                    (wandbox :compiler "gcc-head"
+                             :code "int main(){}"
+                             :sync t)))
   ;; test stdio (input stdin, output stderr)
-  (should (alist-equal
-           '(("status" . "0")
-             ("program_message" . "HELLO")
-             ("program_error" . "HELLO"))
-           (wandbox :lang "perl" :code "while (<>) { print STDERR uc($_); }" :stdin "hello" :sync t)))
+  (should (cl-every #'(lambda (result)
+                        (alist-equal result '(("status" . "0")
+                                              ("program_message" . "HELLO")
+                                              ("program_error" . "HELLO"))))
+                    (wandbox :lang "perl"
+                             :code "while (<>) { print STDERR uc($_); }"
+                             :stdin "hello"
+                             :sync t)))
   ;; multiple compile
   (should (cl-every #'(lambda (result)
                         (alist-equal '(("status" . "0")) result))
@@ -191,20 +198,25 @@
                                         (:name "gcc")
                                         (:name "clang HEAD")
                                         (:name "clang")]
-                             :code "int main(){ return 0; }")))
+                             :code "int main(){ return 0; }"
+                             :sync t)))
   ;; test gist snippet
-  (should (alist-equal
-           '(("status" . "0")
-             ("program_output" . "Hello World!\n")
-             ("program_message" . "Hello World!\n"))
-           (wandbox :name "CLISP" :gist 219882 :stdin "Uryyb Jbeyq!" :sync t)))
+  (should (cl-every #'(lambda (result)
+                        (alist-equal
+                         '(("status" . "0")
+                           ("program_output" . "Hello World!\n")
+                           ("program_message" . "Hello World!\n"))
+                         result))
+                    (wandbox :name "CLISP" :gist 219882 :stdin "Uryyb Jbeyq!" :sync t)))
   ;; test eval-with
-  (should (alist-equal
-           '(("status" . "0")
-             ("program_output" . "(0 1 4 9 16 25 36 49 64 81)\n")
-             ("program_message" . "(0 1 4 9 16 25 36 49 64 81)\n"))
-           (wandbox-eval-with (:sync t)
-             (loop for i from 0 to 9 collect (* i i)))))
+  (should (cl-every #'(lambda (result)
+                        (alist-equal
+                         '(("status" . "0")
+                           ("program_output" . "(0 1 4 9 16 25 36 49 64 81)\n")
+                           ("program_message" . "(0 1 4 9 16 25 36 49 64 81)\n"))
+                         result))
+                    (wandbox-eval-with (:sync t)
+                      (loop for i from 0 to 9 collect (* i i)))))
   t)
 
 (ert-deftest wandbox-list-compilers ()
