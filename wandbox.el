@@ -4,8 +4,8 @@
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.5.1
-;; Package-Requires: ((emacs "24") (json "1.3") (tabulated-list "1.0"))
+;; Version: 0.5.2
+;; Package-Requires: ((emacs "24") (json "1.3"))
 ;; Keywords: c, programming, tools
 ;; Created: 2013/11/22
 ;; License: MIT License (see LICENSE)
@@ -45,6 +45,7 @@
 
 ;;; Change Log:
 
+;; 2016-01-25 ver 0.5.1  trim unnecessary Package-Requires
 ;; 2015-09-05 ver 0.5.0  multiple compile, list compilers, markdown colorize (optional)
 ;; 2015/02/15 ver 0.4.3  `wandbox' can call interactively
 ;; 2015/01/09 ver 0.4.2  add `#wandbox' buffer profile
