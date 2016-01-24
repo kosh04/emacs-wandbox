@@ -85,7 +85,7 @@
   "Wandbox compile api response keywords.")
 
 (defvar wandbox-compilers nil
-  "List compilers available in wandbox.")
+  "Available pairs of URI and compilers in wandbox.")
 
 (defvar wandbox-precompiled-hook nil
   "Hook run before post wandbox.
@@ -94,30 +94,42 @@ Return value will be merged into the old profile.")
 (defvar wandbox-permalink-action #'browse-url
   "Specify function to execute when you run `wandbox-compile' with permalink option (:save).")
 
+(defvar wandbox-default-base-url  "http://melpon.org/wandbox"
+  "Original wandbox URL")
+
+(defvar wandbox-base-urls (list wandbox-default-base-url))
+
+(defvar wandbox-base-url nil)
+
+(defun wandbox-base-url ()
+  (if (not wandbox-base-url) wandbox-default-base-url  wandbox-base-url))
+
 (defvar wandbox-output-buffer "*Wandbox Output*")
 
-(eval-when (compile load eval)
-  (defun wandbox-fetch (src)
-    "Fetch SRC contains (filename or url)."
-    (with-temp-buffer
-      (if (string-match "http[s]?://" src)
-          (url-insert-file-contents src)
-          (insert-file-contents src))
-      (buffer-string)))
+(defun wandbox-base-urls-exist-p (url)
+  (member url wandbox-base-urls))
 
-  (defun wandbox-json-read (string)
-    "Decode json object in STRING."
-    (let ((json-key-type 'string))
-      (json-read-from-string string)))
+;; (eval-when (compile load eval)
+(defun wandbox-fetch (src)
+  "Fetch SRC contains (filename or url)."
+  (with-temp-buffer
+    (if (string-match "http[s]?://" src)
+	(url-insert-file-contents src)
+      (insert-file-contents src))
+    (buffer-string)))
 
-  (defun wandbox-json-load (src)
-    "Encode json object from SRC."
-    (wandbox-json-read (wandbox-fetch src)))
+(defun wandbox-json-read (string)
+  "Decode json object in STRING."
+  (let ((json-key-type 'string))
+    (json-read-from-string string)))
 
-  (defun wandbox-fetch-compilers ()
-    "Fetch compilers available in wandbox."
-    (wandbox-json-load "http://melpon.org/wandbox/api/list.json"))
-  )
+(defun wandbox-json-load (src)
+  "Encode json object from SRC."
+  (wandbox-json-read (wandbox-fetch src)))
+
+(defun wandbox-fetch-compilers ()
+  "Fetch compilers available in wandbox."
+  (wandbox-json-load (concat (wandbox-base-url) "/api/list.json")))
 
 (defun wandbox-merge-plist (&rest args)
   "Merge all the given ARGS into a new plist (destructive)."
@@ -195,13 +207,19 @@ It returns
 ;;     (insert-file-contents src)
 ;;     (plist-put (wandbox-buffer-profile) :code (buffer-string))))
 
+(defun wandbox-compilers-of-url (url)
+  (cdr (assoc url wandbox-compilers)))
+
+(defun wandbox-compilers-of-base-url ()
+  (wandbox-compilers-of-url (wandbox-base-url)))
+
 (defun wandbox-compilers ()
-  "Return compilers available in wandbox."
-  (unless wandbox-compilers
-    (setq wandbox-compilers
-          (eval-when-compile
-            (wandbox-fetch-compilers))))
-  wandbox-compilers)
+  "Return compilers available in wandbox with URI." ;; @@@ assume all of the wandbox API is same.
+  (unless (wandbox-compilers-of-base-url)
+    (let ((compilers-result (wandbox-fetch-compilers)))
+      ;; (message (format "wandbox-compilers: %s" compilers-result))
+      (push (cons (wandbox-base-url) compilers-result) wandbox-compilers)))
+  (wandbox-compilers-of-base-url))
 
 (defun wandbox-compiler-names ()
   "Return compiler names available in wandbox."
@@ -331,7 +349,7 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
 (defun* wandbox-post (object &key (sync nil))
   "Request compile api with JSON data."
   (wandbox--log "send request: %S" object)
-  (let ((url "http://melpon.org/wandbox/api/compile.json")
+  (let ((url (concat (wandbox-base-url) "/api/compile.json"))
         (url-request-method "POST")
         (url-request-extra-headers '(("Content-Type" . "application/json")))
         (url-request-data (json-encode object)))
