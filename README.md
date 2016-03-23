@@ -4,7 +4,7 @@ Wandbox for Emacser
 [![MELPA](http://melpa.org/packages/wandbox-badge.svg)](http://melpa.org/#/wandbox)
 [![Build Status](https://travis-ci.org/kosh04/emacs-wandbox.svg?branch=master)](https://travis-ci.org/kosh04/emacs-wandbox)
 
-wandbox.el is Wandbox API Library for Emacs.
+wandbox.el is Wandbox client program.
 
 README : [Japanese](README.ja.md) / English
 
@@ -12,7 +12,7 @@ README : [Japanese](README.ja.md) / English
 What is Wandbox ?
 -----------------
 
-Wandbox is online compiler/interpreter.
+Wandbox is online compilation service.
 Developed by @melponn and @kikairoya.
 
 You can try various programming language such as C, C++, D, Haskell,
@@ -38,6 +38,15 @@ Installation
 (global-set-key (kbd "C-c w l") 'wandbox-list-compilers)
 ```
 
+Usage
+-----
+
+1. Open some program source
+2. Type `M-x wandbox` to copmile this buffer
+3. The result are display to "Wandbox Output" buffer
+
+for more details, see following reference.
+
 
 References
 ----------
@@ -49,6 +58,7 @@ References
 * `wandbox-compile-region (from to)` - Compile marked region
 * `wandbox-compile-buffer ()`        - Compile with current buffer
 * `wandbox-list-compilers ()`        - Display available compilers
+* `wandbox-select-server (name)`     - Switch to selected NAME wandbox server
 
 ### Function
 
@@ -59,11 +69,13 @@ References
   arguments `compiler`, `options`, `code`, `compiler-option`, `runtime-option`,
   `save` is based on wandbox API.
 
+* `wandbox-add-server (name location)` - Register wandbox server the name as `name`
+
 ### Variable
 
 * `wandbox-profiles` - List of wandbox compiler options.
 * `wandbox-precompiled-hook` - Hook run before post wandbox. Return value will be merged into the old profile.
-
+* `wandbox-default-server` - Wandbox server name to use by default. (default "melpon")
 
 Example
 -------
@@ -114,6 +126,18 @@ Example
 (wandbox :lang "C" :url "http://localhost/prog.c")
 ```
 
+```elisp
+;; Use other server
+(wandbox-add-server "fetus" "https://wandbox.fetus.jp")
+
+(wandbox :code "<?php echo phpversion();"
+         :profiles [(:name "HHVM") (:name "HippyVM") (:name "PHP")]
+         :server-name "fetus")
+
+;; switch default server
+;; or M-x wandbox-select-server fetus
+(setq wandbox-default-server-name "fetus")
+```
 
 TODO
 ----
@@ -124,10 +148,10 @@ TODO
 - [x] handle gist snippet as code
 - [x] multiple profiles (e.g. compare gcc/clang)
 - [ ] easy setting for compiler-options
-- [ ] require request.el
+- [x] require request.el
 - [x] auto generated profile (#2)
 - [ ] use multiple files
-- [ ] use other wandbox clone (#3)
+- [x] use other wandbox clone (#3)
 
 
 License

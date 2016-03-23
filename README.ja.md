@@ -4,7 +4,7 @@ Wandbox for Emacser
 [![MELPA](http://melpa.org/packages/wandbox-badge.svg)](http://melpa.org/#/wandbox)
 [![Build Status](https://travis-ci.org/kosh04/emacs-wandbox.svg?branch=master)](https://travis-ci.org/kosh04/emacs-wandbox)
 
-Wandbox API を利用するための Emacs 拡張ライブラリ。
+Emacs 用 Wandbox クライアント
 
 README : 日本語 / [英語](README.md)
 
@@ -26,10 +26,13 @@ Wandbox は @melponn と @kikairoya が開発したオンラインコンパイ�
 wandbox.el を拾ってきてロードして下さい。
 Emacs24 以上ならば `M-x package-install wandbox` でもインストール出来ます。
 
-適当なファイルを開いて M-x `wandbox-compile-buffer` を実行すると
+使い方
+------
+
+適当なプログラムファイルを開いて M-x `wandbox` を実行すると
 実行結果が Wandbox Output バッファに表示されます。
 
-より詳細なオプションを指定したい場合は `wandbox-compile` を利用してください。
+詳細なオプションを指定して実行したい場合は `wandbox-compile` を利用してください。
 
 
 リファレンス
@@ -73,6 +76,8 @@ Emacs24 以上ならば `M-x package-install wandbox` でもインストール�
 
   また追加機能としてファイル名やプロファイル名の指定ができます。
   プロファイルについては `wandbox-profiles` を参照してください。
+
+* `wandbox-add-server (name location)` - Wandbox サーバーを登録します
 
 ### 変数
 
@@ -135,6 +140,18 @@ Example
 
 (wandbox :lang "C" :url "http://localhost/prog.c")
 ```
+```elisp
+;; 別のサーバを利用する
+(wandbox-add-server "fetus" "https://wandbox.fetus.jp")
+
+(wandbox :code "<?php echo phpversion();"
+         :profiles [(:name "HHVM") (:name "HippyVM") (:name "PHP")]
+         :server-name "fetus")
+
+;; デフォルトで利用するサーバを切り替える
+;; もしくは M-x wandbox-select-server fetus
+(setq wandbox-default-server-name "fetus")
+```
 
 
 TODO
@@ -146,10 +163,10 @@ TODO
 - [x] gist などのコード片を扱えるようにする
 - [x] 複数プロファイルの指定
 - [ ] コンパイラの設定を簡単にしたい
-- [ ] request.el を利用する (ただし依存関係が増える)
+- [x] request.el を利用する
 - [x] プロファイルの自動生成 (#2)
 - [ ] 複数ファイルを扱う
-- [ ] 別ドメインのWandboxクローンを利用する (#3)
+- [x] 別ドメインのWandboxクローンを利用する (#3)
 
 
 ライセンス

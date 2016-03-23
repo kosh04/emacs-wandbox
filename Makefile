@@ -19,7 +19,6 @@ all: clean compile test
 
 compile: $(SRCS:%.el=%.elc)
 
-%.elc: EMACSFLAGS += --eval "(setq byte-compile-error-on-warn t)"
 %.elc: %.el $(PACKAGE_DIR)
 	$(COMPILE.el) $<
 
