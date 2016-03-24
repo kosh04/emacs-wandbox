@@ -1,10 +1,9 @@
 EMACS ?= emacs
 #EMACS = /usr/local/bin/emacs
 #EMACS = /Applications/Emacs.app/Contents/MacOS/Emacs
-EMACSFLAGS :=
+EMACSFLAGS := -L .
 
 CASK ?= cask
-CASK := EMACS=$(EMACS) $(CASK)
 
 SRCS := wandbox.el
 
@@ -19,7 +18,6 @@ all: clean compile test
 
 compile: $(SRCS:%.el=%.elc)
 
-%.elc: EMACSFLAGS += --eval "(setq byte-compile-error-on-warn t)"
 %.elc: %.el $(PACKAGE_DIR)
 	$(COMPILE.el) $<
 
@@ -27,7 +25,6 @@ $(PACKAGE_DIR): Cask
 	$(CASK) install
 	touch $@
 
-test: EMACSFLAGS += -L .
 test:
 	$(CASK) exec $(EMACS_BATCH) \
 	-l wandbox-test.el \

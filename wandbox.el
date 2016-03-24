@@ -46,7 +46,7 @@
 
 ;;; Change Log:
 
-;; 2015-xx-xx ver 0.5.5  require request-deferred
+;; 2015-xx-xx ver 0.5.1  require request-deferred
 ;; 2015-09-05 ver 0.5.0  multiple compile, list compilers, markdown colorize (optional)
 ;; 2015/02/15 ver 0.4.3  `wandbox' can call interactively
 ;; 2015/01/09 ver 0.4.2  add `#wandbox' buffer profile
@@ -67,6 +67,7 @@
 (require 'url-http)
 (require 'request-deferred)
 (require 'tabulated-list)
+(require 'markdown-mode nil t)          ; optional
 
 (defvar wandbox-profiles nil
   "Wandbox copmiler profiles (set of plist).")
@@ -98,7 +99,7 @@ Return value will be merged into the old profile.")
 
 (defvar wandbox-output-buffer "*Wandbox Output*")
 
-(eval-when (compile load eval)
+(cl-eval-when (compile load eval)
   (defun wandbox-fetch (src)
     "Fetch SRC contains (filename or url)."
     (with-temp-buffer
@@ -125,8 +126,8 @@ Return value will be merged into the old profile.")
   "Merge all the given ARGS into a new plist."
   (let ((result (copy-sequence (car args)))) ; XXX better than destructive?
     (dolist (plist (cdr args))
-      (loop for (key value) on plist by #'cddr
-            do (setq result (plist-put result key value))))
+      (cl-loop for (key value) on plist by #'cddr
+               do (setq result (plist-put result key value))))
     result))
 
 (defsubst wandbox--pick (plist &rest keys)
@@ -216,21 +217,19 @@ It returns
 
 (defun wandbox-default-compiler-options (compiler)
   "Return the COMPILER default option."
-  (cl-labels ((mapcan (fn list &rest more-list)
-                (apply #'nconc (apply #'mapcar fn list more-list)))
-              (join (list separator)
+  (cl-labels ((join (list separator)
                 (mapconcat #'identity list separator)))
-    (join (mapcan (lambda (o)
-                    (let ((x (or (cdr (assoc "default" o)) "")))
-                      (cond ((stringp x) (list x))
-                            ((eq x t) (list (cdr (assoc "name" o))))
-                            (t nil))))
-                  (dolist (x (append (wandbox-compilers) nil)) ; array->list
-                    (if (member (cons "name" compiler) x)
-                        (return (cdr (assoc "switches" x))))))
+    (join (cl-mapcan (lambda (o)
+                       (let ((x (or (cdr (assoc "default" o)) "")))
+                         (cond ((stringp x) (list x))
+                               ((eq x t) (list (cdr (assoc "name" o))))
+                               (t nil))))
+                     (dolist (x (append (wandbox-compilers) nil)) ; array->list
+                       (if (member (cons "name" compiler) x)
+                           (return (cdr (assoc "switches" x))))))
           ",")))
 
-(defun* wandbox-build-request-data-raw (&rest profile
+(cl-defun wandbox-build-request-data-raw (&rest profile
                                         &key compiler options code stdin save
                                              compiler-option runtime-option
                                         &allow-other-keys)
@@ -302,10 +301,10 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                 (princ (apply #'format fmt args))
                 (terpri)))
     (println "## %s" (cdr (assoc "compiler" object)))
-    (dolist (res wandbox-response-keywords)
-      (when (assoc res result)
-        (println "* [%s]" (car (assoc res result)))
-        (println "%s" (cdr (assoc res result)))))
+    (dolist (key wandbox-response-keywords)
+      (when (assoc key result)
+        (println "* [%s]" (car (assoc key result)))
+        (println "%s" (cdr (assoc key result)))))
     (println ""))
   result)
 
@@ -329,7 +328,7 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
            (wandbox--log "Compile...done"))
       (kill-buffer buf))))
 
-(defun* wandbox-post (object &key (sync nil))
+(cl-defun wandbox-post (object &key (sync nil))
   "Request compile api with JSON data."
   (wandbox--log "send request: %S" object)
   (let ((url "http://melpon.org/wandbox/api/compile.json")
@@ -351,7 +350,7 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
             other-objects)))
 
 ;;;###autoload
-(defun* wandbox-compile (&rest profile
+(cl-defun wandbox-compile (&rest profile
                          &key
                          compiler options code stdin
                          compiler-option runtime-option
@@ -392,10 +391,11 @@ If FILE specified, compile FILE contents instead of code."
           (deferred:nextc it
             #'(lambda (response)
                 (with-output-to-temp-buffer wandbox-output-buffer
-                  (loop for res in response
-                        do (wandbox--dump (wandbox-json-read
-                                           (plist-get (request-response-settings res) :data))
-                                          (request-response-data res)))))))))))
+                  (cl-loop for res in response
+                           do (wandbox--dump (wandbox-json-read
+                                              (plist-get (request-response-settings res) :data))
+                                             (request-response-data res))))
+                response)))))))
 
 ;; see also: http://developer.github.com/v3/gists/
 (defun wandbox-fetch-gist (id)
@@ -403,7 +403,7 @@ If FILE specified, compile FILE contents instead of code."
   (let ((url (format "https://api.github.com/gists/%d" id)))
     (wandbox-json-load url)))
 
-(defun* wandbox-option-gist (&key gist gist-file &allow-other-keys)
+(cl-defun wandbox-option-gist (&key gist gist-file &allow-other-keys)
   (when gist
     (let* ((data (wandbox-fetch-gist gist))
            (fileinfo (if gist-file
@@ -415,7 +415,7 @@ If FILE specified, compile FILE contents instead of code."
            (profile (wandbox-find-profile :lang lang)))
       (plist-put profile :code content))))
 
-(defun* wandbox-option-code (&key code-before code code-after &allow-other-keys)
+(cl-defun wandbox-option-code (&key code-before code code-after &allow-other-keys)
   (let ((profile nil))
     (plist-put profile :code (concat code-before code code-after))))
 
@@ -433,7 +433,7 @@ If FILE specified, compile FILE contents instead of code."
         (if (and val (string-equal (downcase val) (downcase item)))
             (return (copy-sequence x)))))))
 
-(defun* wandbox-read-profile (&optional (key :name))
+(cl-defun wandbox-read-profile (&optional (key :name))
   "Read a profile setting.
 Completion list is generate from matchs KEY."
   (let* ((completion-ignore-case t)
@@ -478,7 +478,7 @@ Compiler profile is determined by file extension."
     (apply #'wandbox-compile args)))
 
 ;;;###autoload
-(defmacro* wandbox-eval-with ((&rest options) &body form)
+(cl-defmacro wandbox-eval-with ((&rest options) &body form)
   "Evaluate FORM as S-expression."
   (declare (indent 1))
   (let ((print-circle t))

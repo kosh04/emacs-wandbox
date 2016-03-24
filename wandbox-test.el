@@ -222,4 +222,8 @@
 (ert-deftest wandbox-list-compilers ()
   (should (wandbox-list-compilers)))
 
+;; Run tests when load this file
+(when (not noninteractive)
+  (ert t))
+
 ;;; test-wandbox.el ends here
