@@ -5,7 +5,7 @@
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
 ;; Version: 0.5.2
-;; Package-Requires: ((emacs "24") (cl-lib "0.5") (json "1.3") (request-deferred "0.2.0") (tabulated-list "1.0"))
+;; Package-Requires: ((emacs "24") (json "1.3") (request-deferred "0.2.0"))
 ;; Keywords: c, programming, tools
 ;; Created: 2013/11/22
 ;; License: MIT License (see LICENSE)
@@ -46,7 +46,8 @@
 
 ;;; Change Log:
 
-;; 2015-xx-xx ver 0.5.1  require request-deferred
+;; 2016-xx-xx ver 0.5.2  require request-deferred
+;; 2016-01-25 ver 0.5.1  trim unnecessary Package-Requires
 ;; 2015-09-05 ver 0.5.0  multiple compile, list compilers, markdown colorize (optional)
 ;; 2015/02/15 ver 0.4.3  `wandbox' can call interactively
 ;; 2015/01/09 ver 0.4.2  add `#wandbox' buffer profile
