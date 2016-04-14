@@ -70,7 +70,6 @@
 (require 'tabulated-list)
 (require 's)
 (require 'request)
-(require 'markdown-mode nil t)          ; optional
 
 (cl-eval-when (compile load eval)
 
@@ -322,7 +321,7 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
 
 (defsubst wandbox--setup-markdown-font-lock ()
   "Use markdown font lock in `wandbox-output-buffer' (in-progress)."
-  (when (featurep 'markdown-mode)
+  (when (require 'markdown-mode nil t)
     (with-current-buffer wandbox-output-buffer
       (setq-local font-lock-defaults '(gfm-font-lock-keywords))
       (font-lock-mode t))))
