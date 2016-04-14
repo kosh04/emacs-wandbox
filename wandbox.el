@@ -70,7 +70,7 @@
 (require 'tabulated-list)
 (require 's)
 (require 'request)
-(require 'markdown nil t)               ; optional
+(require 'markdown-mode nil t)          ; optional
 
 (cl-eval-when (compile load eval)
 
