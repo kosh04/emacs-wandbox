@@ -1,12 +1,12 @@
-;;; wandbox.el --- Wandbox API Library for Emacs
+;;; wandbox.el --- Wandbox client for Emacs
 
 ;; Copyright (C) 2013-2016 KOBAYASHI Shigeru
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.6.0
+;; Version: 0.6.1
 ;; Package-Requires: ((emacs "24") (request "0.2.0") (s "1.10.0"))
-;; Keywords: c, programming, tools
+;; Keywords: tools
 ;; Created: 2013/11/22
 ;; License: MIT License (see LICENSE)
 
@@ -14,7 +14,7 @@
 
 ;;; Commentary:
 
-;; wandbox.el is wandbox (online compiler) interface.
+;; wandbox.el is wandbox (online compiler) client tool.
 ;; You can compile and run code snippets by using wandbox API.
 
 ;; Wandbox Home: http://melpon.org/wandbox/
@@ -48,6 +48,7 @@
 
 ;;; Change Log:
 
+;; 2016-05-04 ver 0.6.1  customize variables
 ;; 2016-04-01 ver 0.6.0  use `request' library / selectable wandbox servers
 ;; 2016-01-25 ver 0.5.1  trim unnecessary Package-Requires
 ;; 2015-09-05 ver 0.5.0  multiple compile, list compilers, markdown colorize (optional)
@@ -63,13 +64,62 @@
 
 ;;; Code:
 
-(eval-when-compile
-  (require 'cl))
 (require 'cl-lib)
 (require 'json)
 (require 'tabulated-list)
 (require 's)
 (require 'request)
+
+(defgroup wandbox nil
+  "Wandbox client for Emacs."
+  :prefix "wandbox-"
+  :group  'tools)
+
+(defcustom wandbox-response-keywords
+  '("compiler_message"
+    "program_message"
+    "status"
+    "signal"
+    "url")
+  "List of compile api response keywords."
+  :group 'wandbox
+  :type '(repeat (choice
+                  (const "status" :tag "Exit code")
+                  (const "signal" :tag "Signal message")
+                  (const "compiler_output"  :tag "stdout at compiling")
+                  (const "compiler_error"   :tag "stderr at compiling")
+                  (const "compiler_message" :tag "merged messages compiler_output and compiler_error")
+                  (const "program_output"  :tag "stdout at runtime")
+                  (const "program_error"   :tag "stderr at runtime")
+                  (const "program_message" :tag "merged messages program_output and program_error")
+                  (const "permlink" :tag "/permlink/:link")
+                  (const "url" :tag "URL to display on browser"))))
+
+(defcustom wandbox-profiles nil
+  "User-defined copmiler settings."
+  :group 'wandbox
+  :type  '(list (plist
+                 ;; FIXME: how to select key as `keyword'
+                 :key-type   (symbol :tag "Compile parameter")
+                 :value-type (choice (string)
+                                     (boolean :tag "(:save only)")))))
+
+(defcustom wandbox-precompiled-hook nil
+  "Hook run before post wandbox.
+Return value will be merged into the old profile."
+  :group 'wandbox
+  :type  'hook
+  :options '(wandbox-option-gist wandbox-option-code))
+
+(defcustom wandbox-permalink-action #'browse-url
+  "Function when you run `wandbox-compile' with permalink option (:save)."
+  :group 'wandbox
+  :type  'function)
+
+(defcustom wandbox-output-buffer "*Wandbox Output*"
+  "Output result buffer name."
+  :group 'wandbox
+  :type  'string)
 
 (cl-eval-when (compile load eval)
 
@@ -92,6 +142,7 @@
 
   (defsubst wandbox--default-compiler-options (compiler compilers)
     "Return the COMPILER default options.
+
 Example: compiler \"gcc-4.8.2-c\" switches will be \"warning,c11\"."
     (let ((switches
            ;; $[name=compiler].switches
@@ -135,43 +186,16 @@ Example: compiler \"gcc-4.8.2-c\" switches will be \"warning,c11\"."
 
 ) ;; end eval-when (compile load eval)
 
-
-(defvar wandbox-response-keywords
-  '(
-    ;;"compiler_output"
-    ;;"compiler_error"
-    "compiler_message"
-    ;;"program_output"
-    ;;"program_error"
-    "program_message"
-    "status"
-    "signal"
-    ;;"permlink"
-    "url"
-    )
-  "Wandbox compile api response keywords.")
-
-(defvar wandbox-profiles nil
-  "User-defined copmiler settings.")
-
-(defvar wandbox-precompiled-hook nil
-  "Hook run before post wandbox.
-Return value will be merged into the old profile.")
-
-(defvar wandbox-permalink-action #'browse-url
-  "Specify function to execute when you run `wandbox-compile' with permalink option (:save).")
-
-(defvar wandbox-output-buffer "*Wandbox Output*"
-  "Output result buffer name.")
-
 (defvar wandbox-servers
   (list
    (eval-when-compile
      (wandbox-create-server "melpon" "http://melpon.org/wandbox")))
   "Available wandbox server list.")
 
-(defvar wandbox-default-server-name "melpon"
-  "Wandbox server name to use by default.")
+(defcustom wandbox-default-server-name "melpon"
+  "Wandbox server name to use by default."
+  :group 'wandbox
+  :type  'string)
 
 (cl-defun wandbox-find-server (name &key (if-does-not-exist :skip))
   (or (cl-find name wandbox-servers :key #'wandbox-server-name :test #'string=)
@@ -297,26 +321,30 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
     (setq profile (wandbox--merge-profile
                    profile
                    ;; 1.
-                   (function* (lambda (&key file &allow-other-keys)
-                                (when file `(:code ,(wandbox-fetch file)))))
+                   (cl-function
+                    (lambda (&key file &allow-other-keys)
+                      (when file `(:code ,(wandbox-fetch file)))))
                    ;; 2.
-                   (function* (lambda (&key code &allow-other-keys)
-                                (when code (with-temp-buffer
-                                             (insert code)
-                                             (wandbox--buffer-profile)))))
+                   (cl-function
+                    (lambda (&key code &allow-other-keys)
+                      (when code (with-temp-buffer
+                                   (insert code)
+                                   (wandbox--buffer-profile)))))
                    ;; 3.
-                   (function* (lambda (&key name lang &allow-other-keys)
-                                (let ((profiles (wandbox-server-profiles server)))
-                                  (cond
-                                   (name (or (wandbox-find-profile :name name wandbox-profiles)
-                                             (wandbox-find-profile :name name profiles)
-                                             (error "Not found :name %s" name)))
-                                   (lang (or (wandbox-find-profile :lang lang profiles)
-                                             (error "Not found :lang %s" lang)))))))
+                   (cl-function
+                    (lambda (&key name lang &allow-other-keys)
+                      (let ((profiles (wandbox-server-profiles server)))
+                        (cond
+                         (name (or (wandbox-find-profile :name name wandbox-profiles)
+                                   (wandbox-find-profile :name name profiles)
+                                   (error "Not found :name %s" name)))
+                         (lang (or (wandbox-find-profile :lang lang profiles)
+                                   (error "Not found :lang %s" lang)))))))
                    ;; 4.
-                   (function* (lambda (&rest _)
-                                (declare (ignore _))
-                                other-spec))))
+                   (cl-function
+                    (lambda (&rest _)
+                      (declare (ignore _))
+                      other-spec))))
     (apply #'wandbox-build-request-data-raw :server server profile)))
 
 (defsubst wandbox--setup-markdown-font-lock ()
@@ -396,10 +424,20 @@ JSON data for http post is build from PROFILE."
                            (server-name wandbox-default-server-name)
                            &allow-other-keys
                            &aux (server (wandbox-find-server server-name :if-does-not-exist :error)))
-  "Compile CODE as COMPILER's program code.
-If NAME specified, select compiler template from `wandbox-profiles'
-or default server compiler settings.
-If FILE specified, compile FILE contents instead of code."
+  "Compile CODE as COMPILER's program code on Wandbox.
+
+URL `http://melpon.org/wandbox' is online compiler service
+for multi programming language (C/C++, Python, PHP, Common Lisp, etc).
+
+Options:
+
+* LANG is language name. (e.g. \"Ruby\")
+* NAME is select compiler template from `wandbox-profiles' or default compiler settings.
+* FILE is file contents instead of CODE.
+* SYNC is synchronous mode. (debug)
+* SERVER-NAME is server name. (default `wandbox-default-server-name')
+
+List of available server values, see `wandbox-list-compilers'."
   (if (<= 1 (length profiles))
       (wandbox-post* server profile profiles)
       (wandbox-post server profile :sync sync :callback #'request-response-data)))
@@ -426,8 +464,9 @@ If FILE specified, compile FILE contents instead of code."
   (let ((profile nil))
     (plist-put profile :code (concat code-before code code-after))))
 
-(add-to-list 'wandbox-precompiled-hook #'wandbox-option-gist t)
-(add-to-list 'wandbox-precompiled-hook #'wandbox-option-code t)
+(unless wandbox-precompiled-hook
+  (add-to-list 'wandbox-precompiled-hook #'wandbox-option-gist t)
+  (add-to-list 'wandbox-precompiled-hook #'wandbox-option-code t))
 
 (cl-defun wandbox-find-profile (key item &optional
                                 (profiles (wandbox-server-profiles
@@ -513,6 +552,7 @@ Compiler profile is determined by file extension."
                             form))))
 
 (defun wandbox-tweet (url)
+  "Post a text URL to twitter."
   (browse-url (concat "https://twitter.com/intent/tweet?text=Wandbox&url="
                       (url-hexify-string url))))
 
@@ -544,13 +584,14 @@ Compiler profile is determined by file extension."
                 (compilers (wandbox-server-compilers server)))
             (mapcar (lambda (item)
                       (prog1
-                          (list id (vector (cdr (assoc "language" item))
-                                           (cdr (assoc "display-name" item))
-                                           (cdr (assoc "name" item))
-                                           (cdr (assoc "version" item))
-                                           (cdr (assoc "display-compile-command" item))
-                                           (wandbox--default-compiler-options
-                                            (cdr (assoc "name" item)) compilers)))
+                          (list id (vector
+                                    (cdr (assoc "language" item))
+                                    (cdr (assoc "display-name" item))
+                                    (cdr (assoc "name" item))
+                                    (cdr (assoc "version" item))
+                                    (cdr (assoc "display-compile-command" item))
+                                    (wandbox--default-compiler-options
+                                     (cdr (assoc "name" item)) compilers)))
                         (setq id (1+ id))))
                     compilers)))
     (message "%s" (wandbox-server-location server))
