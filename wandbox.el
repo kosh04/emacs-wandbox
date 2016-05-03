@@ -476,7 +476,7 @@ List of available server values, see `wandbox-list-compilers'."
   ;;       :key (lambda (x) (plist-get x key))
   ;;       :test #'string-equal)
   (when (stringp item)
-    (dolist (p profiles)
+    (cl-dolist (p profiles)
       (let ((val (plist-get p key)))
         (if (and val (string-equal (downcase val) (downcase item)))
             (cl-return (copy-sequence p)))))))
