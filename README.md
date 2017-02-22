@@ -42,7 +42,7 @@ Usage
 -----
 
 1. Open some program source
-2. Type `M-x wandbox` to copmile this buffer
+2. Type `M-x wandbox` to compile this buffer
 3. The result are display to "Wandbox Output" buffer
 
 for more details, see following reference.
