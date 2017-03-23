@@ -1,24 +1,28 @@
-language: emacs-lisp
+language: generic
 
 sudo: required
+dist: trusty
 
-cache: apt
+addons:
+  apt:
+    sources:
+      - sourceline: 'ppa:ubuntu-elisp/ppa'
+    packages:
+      - emacs
+      - emacs-snapshot
 
 env:
   matrix:
-    - EMACS=emacs24
+    - EMACS=emacs
     - EMACS=emacs-snapshot
 
 matrix:
    allow_failures:
-     # emacs-snapshot (emacs25) is not yet stable version.
+     # emacs-snapshot (daily snapshot) is not yet stable version
      - env: EMACS=emacs-snapshot
 
 before_install:
-  - sudo add-apt-repository -y ppa:ubuntu-elisp/ppa
-  - sudo apt-get -qq update
-  - sudo apt-get -qq install ${EMACS} ${EMACS}-el
-  - emacs --version
+  - $EMACS --version
 
 install:
   - curl -fsSkL https://raw.github.com/cask/cask/master/go | python
@@ -26,4 +30,5 @@ install:
   - cask install
 
 script:
-  - make compile test
+  - make compile
+  - make test
