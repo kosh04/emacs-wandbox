@@ -1,28 +1,17 @@
 language: generic
 
-sudo: required
 dist: trusty
-
-addons:
-  apt:
-    sources:
-      - sourceline: 'ppa:ubuntu-elisp/ppa'
-    packages:
-      - emacs
-      - emacs-snapshot
+sudo: false
 
 env:
-  matrix:
-    - EMACS=emacs
-    - EMACS=emacs-snapshot
-
-matrix:
-   allow_failures:
-     # emacs-snapshot (daily snapshot) is not yet stable version
-     - env: EMACS=emacs-snapshot
-
+  - EMACS=emacs-24.4
+  - EMACS=emacs-24.5
+  - EMACS=emacs-25.1
+  
 before_install:
-  - $EMACS --version
+  - make -C .ci -f emacs.mk EMACS=${EMACS} PREFIX=${HOME}/opt
+  - export PATH=${PATH}:${HOME}/opt/bin
+  - ${EMACS} --version
 
 install:
   - curl -fsSkL https://raw.github.com/cask/cask/master/go | python
