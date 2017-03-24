@@ -171,8 +171,8 @@
 
 (ert-deftest wandbox-build-request-data ()
   "Test request data."
-  (should (alist-subsetp '(("compiler" . "gcc-4.8.2-c")
-                           ("options" . "warning,c11")
+  (should (alist-subsetp '(("compiler" . "gcc-head-c")
+                           ("options" . "warning,gnu11,cpp-no-pedantic")
                            ("code" . "main(){}"))
                          (wandbox-build-request-data
                           :lang "C"
@@ -222,12 +222,13 @@
 
 (ert-deftest wandbox-user-profile ()
   "Test user defined profile."
-  (should-error (wandbox :name "gcc-latest" :code "main(){}" :sync t))
-  (add-to-list 'wandbox-profiles '(:name "gcc-latest" :compiler "gcc-head"))
-  (should (alist-equal
-           '(("status" . "0"))
-           (wandbox :name "gcc-latest" :code "main(){ return 0; }" :sync t)))
-  (should t))
+  (let ((wandbox-profiles nil)
+        (f (lambda ()
+             (wandbox :name "gcc-latest" :code "main(){ return 0; }" :sync t))))
+    (should-error (funcall f))
+    (add-to-list 'wandbox-profiles '(:name "gcc-latest" :compiler "gcc-head"))
+    (should (alist-equal '(("status" . "0"))
+                         (funcall f)))))
 
 (ert-deftest wandbox-compile-multiple ()
   "Test multiple compile."
