@@ -1,14 +1,14 @@
-;;; wandbox.el --- Wandbox client for Emacs
+;;; wandbox.el --- Wandbox client
 
-;; Copyright (C) 2013-2016 KOBAYASHI Shigeru
+;; Copyright (C) 2013-2017 KOBAYASHI Shigeru
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.6.1
-;; Package-Requires: ((emacs "24") (request "0.2.0") (s "1.10.0"))
+;; Version: 0.6.2
+;; Package-Requires: ((emacs "24") (request "0.3.0") (s "1.10.0"))
 ;; Keywords: tools
 ;; Created: 2013/11/22
-;; License: MIT License (see LICENSE)
+;; License: MIT License
 
 ;; This file is NOT part of GNU Emacs.
 
@@ -17,10 +17,11 @@
 ;; wandbox.el is wandbox (online compiler) client tool.
 ;; You can compile and run code snippets by using wandbox API.
 
-;; Wandbox Home: http://melpon.org/wandbox/
+;; Wandbox Home: https://wandbox.org
 
-;;; Example:
-
+;; Example
+;; -------
+;;
 ;; ## Use Interactive
 ;;
 ;; M-x wandbox                - Alias `wandbox-compile-buffer'
@@ -48,6 +49,7 @@
 
 ;;; Change Log:
 
+;; 2017-03-23 ver 0.6.2  change URL
 ;; 2016-05-04 ver 0.6.1  customize variables
 ;; 2016-04-01 ver 0.6.0  use `request' library / selectable wandbox servers
 ;; 2016-01-25 ver 0.5.1  trim unnecessary Package-Requires
@@ -73,6 +75,8 @@
 (defgroup wandbox nil
   "Wandbox client for Emacs."
   :prefix "wandbox-"
+  :link '(emacs-commentary-link "wandbox")
+  :link '(url-link "https://github.com/kosh04/emacs-wandbox")
   :group  'tools)
 
 (defcustom wandbox-response-keywords
@@ -189,7 +193,7 @@ Example: compiler \"gcc-4.8.2-c\" switches will be \"warning,c11\"."
 (defvar wandbox-servers
   (list
    (eval-when-compile
-     (wandbox-create-server "melpon" "http://melpon.org/wandbox")))
+     (wandbox-create-server "melpon" "https://wandbox.org")))
   "Available wandbox server list.")
 
 (defcustom wandbox-default-server-name "melpon"
@@ -389,12 +393,14 @@ JSON data for http post is build from PROFILE."
                 (let ((json-key-type 'string))
                   (json-read))))
     (let* ((url (wandbox-server-api/compile server))
-           (param (apply #'wandbox-build-request-data :server server profile)))
+           (param (apply #'wandbox-build-request-data :server server profile))
+           (data (json-encode param)))
       (wandbox--log "send request: %S" param)
+      (setq data (encode-coding-string data 'raw-text))
       (funcall callback
                (request url
                         :type "POST"
-                        :data (json-encode param)
+                        :data data
                         :headers '(("Content-Type" . "application/json"))
                         :parser #'parser
                         :success (if sync #'ignore #'onsuccess)
@@ -426,7 +432,7 @@ JSON data for http post is build from PROFILE."
                            &aux (server (wandbox-find-server server-name :if-does-not-exist :error)))
   "Compile CODE as COMPILER's program code on Wandbox.
 
-URL `http://melpon.org/wandbox' is online compiler service
+URL `https://wandbox.org' is online compiler service
 for multi programming language (C/C++, Python, PHP, Common Lisp, etc).
 
 Options:
@@ -606,6 +612,12 @@ Compiler profile is determined by file extension."
     (tabulated-list-init-header)
     (tabulated-list-print)
     (switch-to-buffer (current-buffer))))
+
+;;;###autoload
+(defun wandbox-customize (&optional other-window)
+  "Customize wandbox variablis."
+  (interactive "P")
+  (customize-group 'wandbox other-window))
 
 (provide 'wandbox)
 

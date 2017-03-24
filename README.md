@@ -19,7 +19,7 @@ You can try various programming language such as C, C++, D, Haskell,
 Perl, Python, Ruby, PHP, Erlang, Java, JavaScript, CoffeeScript Rust,
 Common Lisp, and more.
 
-* [Wandbox Home](http://melpon.org/wandbox/)
+* [Wandbox Home](http://wandbox.org)
 * [API Reference](https://github.com/melpon/wandbox/blob/master/kennel2/API.rst)
 
 
@@ -139,19 +139,17 @@ Example
 (setq wandbox-default-server-name "fetus")
 ```
 
-TODO
+
+Tips
 ----
 
-- [x] add test
-- [x] add merge-plist
-- [ ] configure response-data
-- [x] handle gist snippet as code
-- [x] multiple profiles (e.g. compare gcc/clang)
-- [ ] easy setting for compiler-options
-- [x] require request.el
-- [x] auto generated profile (#2)
-- [ ] use multiple files
-- [x] use other wandbox clone (#3)
+### Use new/latest compilers
+
+The compiler list information available in Wandbox is saved
+as a cache at the time of byte-compile.
+
+If you want to use latest compilers, recompile `wandbox.el` and
+restart Emacs.
 
 
 License

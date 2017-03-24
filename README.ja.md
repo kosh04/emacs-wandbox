@@ -16,7 +16,7 @@ Wandbox は @melponn と @kikairoya が開発したオンラインコンパイ�
 主に C++ に特化している他、C, Perl, Python, Ruby, PHP, Common Lisp など
 様々な言語に対応しています。
 
-* [Wandbox Home](http://melpon.org/wandbox/)
+* [Wandbox Home](http://wandbox.org)
 * [API Reference](https://github.com/melpon/wandbox/blob/master/kennel2/API.rst)
 
 
@@ -153,20 +153,16 @@ Example
 (setq wandbox-default-server-name "fetus")
 ```
 
-
-TODO
+Tips
 ----
 
-- [x] テストの作成
-- [x] add merge-plist
-- [ ] コンパイル結果のデータをユーザが弄れるようにする
-- [x] gist などのコード片を扱えるようにする
-- [x] 複数プロファイルの指定
-- [ ] コンパイラの設定を簡単にしたい
-- [x] request.el を利用する
-- [x] プロファイルの自動生成 (#2)
-- [ ] 複数ファイルを扱う
-- [x] 別ドメインのWandboxクローンを利用する (#3)
+### 最新のコンパイラ一覧を利用したい
+
+このパッケージでは Wandbox で利用可能なコンパイラ一覧の情報を
+バイトコンパイル時にキャッシュとして保存しています。
+
+より最新のコンパイラ情報を利用したい場合は、`wandbox.el` を再度バイトコンパイルして
+Emacs を再起動してください。
 
 
 ライセンス
