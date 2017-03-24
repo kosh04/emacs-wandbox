@@ -1,10 +1,10 @@
 # Build Emacs recipe
-# Usage: make -f emacs.mk [EMACS=emacs-25.1] [PREFIX=/usr/local]
+# Usage: make -f emacs.mk [NAME=emacs-25.1] [PREFIX=/usr/local]
 
 PREFIX:=${HOME}/opt
 
-EMACS:=emacs-24.4
-EMACS_ARCHIVE=${EMACS}.tar.xz
+NAME:=emacs-24.4
+EMACS_ARCHIVE=${NAME}.tar.xz
 EMACS_ARCHIVE_URL=http://ftpmirror.gnu.org/emacs/${EMACS_ARCHIVE}
 
 default: build install
@@ -14,11 +14,10 @@ ${EMACS_ARCHIVE}:
 
 build: ${EMACS_ARCHIVE}
 	tar xf ${EMACS_ARCHIVE}
-	cd ${EMACS} && ./configure --without-all --without-x --prefix=${PREFIX}
-	cd ${EMACS} && make
-	cd ${EMACS} && make install-strip
+	cd ${NAME} && ./configure --without-all --without-x --prefix=${PREFIX}
+	cd ${NAME} && make
 
 install:
-	make install
+	cd ${NAME} && make install-strip
 
 .PHONY: build install
