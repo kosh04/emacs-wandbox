@@ -1,10 +1,11 @@
 Wandbox for Emacser
 ===================
 
-[![MELPA](http://melpa.org/packages/wandbox-badge.svg)](http://melpa.org/#/wandbox)
 [![Build Status](https://travis-ci.org/kosh04/emacs-wandbox.svg?branch=master)](https://travis-ci.org/kosh04/emacs-wandbox)
+[![MELPA](https://melpa.org/packages/wandbox-badge.svg)](https://melpa.org/#/wandbox)
+[![MELPA Stable](https://stable.melpa.org/packages/wandbox-badge.svg)](https://stable.melpa.org/#/wandbox)
 
-wandbox.el is Wandbox client program.
+`wandbox.el` is Wandbox client tool.
 
 README : [Japanese](README.ja.md) / English
 
@@ -19,7 +20,7 @@ You can try various programming language such as C, C++, D, Haskell,
 Perl, Python, Ruby, PHP, Erlang, Java, JavaScript, CoffeeScript Rust,
 Common Lisp, and more.
 
-* [Wandbox Home](http://wandbox.org)
+* [Wandbox Home](https://wandbox.org)
 * [API Reference](https://github.com/melpon/wandbox/blob/master/kennel2/API.rst)
 
 
