@@ -1,8 +1,9 @@
 Wandbox for Emacser
 ===================
 
-[![MELPA](http://melpa.org/packages/wandbox-badge.svg)](http://melpa.org/#/wandbox)
 [![Build Status](https://travis-ci.org/kosh04/emacs-wandbox.svg?branch=master)](https://travis-ci.org/kosh04/emacs-wandbox)
+[![MELPA](https://melpa.org/packages/wandbox-badge.svg)](https://melpa.org/#/wandbox)
+[![MELPA Stable](https://stable.melpa.org/packages/wandbox-badge.svg)](https://stable.melpa.org/#/wandbox)
 
 Emacs 用 Wandbox クライアント
 
@@ -16,7 +17,7 @@ Wandbox は @melponn と @kikairoya が開発したオンラインコンパイ�
 主に C++ に特化している他、C, Perl, Python, Ruby, PHP, Common Lisp など
 様々な言語に対応しています。
 
-* [Wandbox Home](http://wandbox.org)
+* [Wandbox Home](https://wandbox.org)
 * [API Reference](https://github.com/melpon/wandbox/blob/master/kennel2/API.rst)
 
 
