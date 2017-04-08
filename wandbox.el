@@ -24,11 +24,12 @@
 ;;
 ;; ## Use Interactive
 ;;
-;; M-x wandbox                - Alias `wandbox-compile-buffer'
-;; M-x wandbox-compile-file   - Compile with file contents
-;; M-x wandbox-compile-region - Compile marked region
-;; M-x wandbox-compile-buffer - Compile current buffer
-;; M-x wandbox-list-compilers - Display copilers list
+;; M-x wandbox                 - Alias `wandbox-compile-buffer'
+;; M-x wandbox-compile-file    - Compile with file contents
+;; M-x wandbox-compile-region  - Compile marked region
+;; M-x wandbox-compile-buffer  - Compile current buffer
+;; M-x wandbox-insert-template - Insert template snippet
+;; M-x wandbox-list-compilers  - Display copilers list
 ;;
 ;; Note: if `#wandbox param: value` token found on selected file/buffer,
 ;; wandbox-compile-file/buffer compiles using those params.
@@ -49,6 +50,7 @@
 
 ;;; Change Log:
 
+;; 2017-04-xx ver 0.6.3  enable template / show details in the compiler list
 ;; 2017-03-23 ver 0.6.2  change URL
 ;; 2016-05-04 ver 0.6.1  customize variables
 ;; 2016-04-01 ver 0.6.0  use `request' library / selectable wandbox servers
@@ -157,6 +159,13 @@ Example: compiler \"gcc-4.8.2-c\" switches will be \"warning,c11\"."
                            unless (eq #1=(cdr (assoc "default" s)) :json-false)
                            collect (if (stringp #1#) #1# (cdr (assoc "name" s)))))))
 
+  (defsubst wandbox--template-names (compilers)
+    (let (names)
+      (cl-loop for c across compilers
+               do (cl-loop for template across (cdr (assoc "templates" c))
+                           do (cl-pushnew template names :test #'string-equal)))
+      (nreverse names)))
+
   (defsubst wandbox--make-profiles (compilers)
     "Generate profiles from `wandbox-server-compilers' as COMPILERS."
     (cl-labels ((make-profile (compiler)
@@ -176,16 +185,20 @@ Example: compiler \"gcc-4.8.2-c\" switches will be \"warning,c11\"."
   (cl-defstruct (wandbox-server
                  (:constructor wandbox-create-server
                   (name location &aux
-                        (api/list    (format "%s/api/list.json" location))
-                        (api/compile (format "%s/api/compile.json" location))
+                        (api/list     (format "%s/api/list.json" location))
+                        (api/compile  (format "%s/api/compile.json" location))
+                        (api/template (format "%s/api/template/%%s" location))
                         (compilers (wandbox--json-load api/list))
+                        (templates (wandbox--template-names compilers))
                         (profiles  (wandbox--make-profiles compilers)))))
     "Server information."
     (name :type string :read-only t)       ; unique name
     (location :type string :read-only t)   ; API BaseURL
     (api/list    :type url :read-only t)
     (api/compile :type url :read-only t)
+    (api/template :type url :read-only t)
     (compilers :type list :read-only t)
+    (templates :type list :read-only t)
     (profiles :type list))
 
 ) ;; end eval-when (compile load eval)
@@ -235,6 +248,8 @@ Example: compiler \"gcc-4.8.2-c\" switches will be \"warning,c11\"."
           (setq obj (plist-put obj key val)))))
     obj))
 
+(defvar wandbox--verbose nil)
+
 (defsubst wandbox--log (format &rest args)
   "Display log message."
   (cl-labels ((truncate (obj)
@@ -246,9 +261,10 @@ Example: compiler \"gcc-4.8.2-c\" switches will be \"warning,c11\"."
                                      collect (cons key (truncate value)))
                             obj))
                   (t obj))))
-    (let ((msg (apply #'format format (mapcar #'truncate args))))
-      (setq msg (s-replace "\n" "" msg)) ; one-line
-      (message "Wandbox: %s" msg))))
+    (when wandbox--verbose
+      (let ((msg (apply #'format format (mapcar #'truncate args))))
+        (setq msg (s-replace "\n" "" msg)) ; one-line
+        (message "Wandbox: %s" msg)))))
 
 (defsubst wandbox--buffer-profile ()
   "Find embedded wandbox parameters in current buffer.
@@ -574,8 +590,27 @@ Compiler profile is determined by file extension."
     (setq wandbox-default-server-name name)
     (message "Set server [%s] %s" name (wandbox-server-location s))))
 
+;;;; Wandbox menu mode
+
+(defvar wandbox-menu-mode-map
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map tabulated-list-mode-map)
+    (define-key map (kbd "RET") 'wandbox-menu-select)
+    map)
+  "Local keymap for `wandbox-menu-mode' buffers.")
+
+(defun wandbox-menu-select ()
+  "Show details about compiler information at point."
+  (interactive)
+  (let ((compiler (tabulated-list-get-id)))
+    (with-output-to-temp-buffer "*Wandbox Compiler Info*"
+      (let ((json-encoding-pretty-print t))
+        (princ (json-encode compiler))))))
+
 (define-derived-mode wandbox-menu-mode tabulated-list-mode "Wandbox Compilers"
-  "Display available complers list."
+  "Display available complers list.
+\\<wandbox-menu-mode-map>
+\\{wandbox-menu-mode-map}"
   (let ((server (wandbox-default-server)))
     (setq tabulated-list-format [("Language" 12 t)
                                  ("Name"     15 t)
@@ -586,32 +621,45 @@ Compiler profile is determined by file extension."
     (setq tabulated-list-padding 2)
     (setq tabulated-list-sort-key '("Language" . nil))
     (setq tabulated-list-entries
-          (let ((id 0)
-                (compilers (wandbox-server-compilers server)))
+          (let ((compilers (wandbox-server-compilers server)))
             (mapcar (lambda (item)
                       (prog1
-                          (list id (vector
-                                    (cdr (assoc "language" item))
-                                    (cdr (assoc "display-name" item))
-                                    (cdr (assoc "name" item))
-                                    (cdr (assoc "version" item))
-                                    (cdr (assoc "display-compile-command" item))
-                                    (wandbox--default-compiler-options
-                                     (cdr (assoc "name" item)) compilers)))
-                        (setq id (1+ id))))
+                          (list item (vector
+                                      (cdr (assoc "language" item))
+                                      (cdr (assoc "display-name" item))
+                                      (cdr (assoc "name" item))
+                                      (cdr (assoc "version" item))
+                                      (cdr (assoc "display-compile-command" item))
+                                      (wandbox--default-compiler-options
+                                       (cdr (assoc "name" item)) compilers)))))
                     compilers)))
+    (tabulated-list-init-header)
     (message "%s" (wandbox-server-location server))
     (hl-line-mode)))
 
 ;;;###autoload
-(defun wandbox-list-compilers ()
+(defun wandbox-list-compilers (&optional popup)
   "Display compilers list."
-  (interactive)
+  (interactive "P")
   (with-current-buffer (get-buffer-create "*Wandbox Compilers*")
     (wandbox-menu-mode)
-    (tabulated-list-init-header)
     (tabulated-list-print)
-    (switch-to-buffer (current-buffer))))
+    (funcall (if popup 'pop-to-buffer 'switch-to-buffer) (current-buffer))))
+
+(defsubst wandbox--template (name)
+  (let* ((url-fmt (wandbox-server-api/template (wandbox-default-server)))
+         (url (format url-fmt name)))
+    (cdr (assoc "code" (wandbox--json-load url)))))
+
+;;;###autoload
+(defun wandbox-insert-template (name)
+  "Insert template snippet named NAME."
+  (interactive (list
+                (completing-read "Insert template: "
+                  (wandbox-server-templates (wandbox-default-server)) nil t)))
+  (save-excursion
+    (insert (or (wandbox--template name)
+                (error "template `%s' not found" name)))))
 
 ;;;###autoload
 (defun wandbox-customize (&optional other-window)

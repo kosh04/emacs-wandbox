@@ -36,6 +36,7 @@ Installation
 (require 'wandbox)
 (global-set-key (kbd "C-c w w") 'wandbox)
 (global-set-key (kbd "C-c w e") 'wandbox-eval-last-sexp)
+(global-set-key (kbd "C-c w i") 'wandbox-insert-template)
 (global-set-key (kbd "C-c w l") 'wandbox-list-compilers)
 ```
 
@@ -59,6 +60,7 @@ References
 * `wandbox-compile-region (from to)` - Compile marked region
 * `wandbox-compile-buffer ()`        - Compile with current buffer
 * `wandbox-list-compilers ()`        - Display available compilers
+* `wandbox-insert-template (name)`   - Insert template snippet
 * `wandbox-select-server (name)`     - Switch to selected NAME wandbox server
 
 ### Function
