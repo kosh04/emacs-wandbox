@@ -4,7 +4,7 @@
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.6.2
+;; Version: 0.6.3
 ;; Package-Requires: ((emacs "24") (request "0.3.0") (s "1.10.0"))
 ;; Keywords: tools
 ;; Created: 2013/11/22
@@ -50,7 +50,7 @@
 
 ;;; Change Log:
 
-;; 2017-04-xx ver 0.6.3  enable template / show details in the compiler list
+;; 2017-04-26 ver 0.6.3  template API available / show details in the compiler list
 ;; 2017-03-23 ver 0.6.2  change URL
 ;; 2016-05-04 ver 0.6.1  customize variables
 ;; 2016-04-01 ver 0.6.0  use `request' library / selectable wandbox servers
