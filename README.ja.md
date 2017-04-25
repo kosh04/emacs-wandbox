@@ -62,6 +62,14 @@ Emacs24 以上ならば `M-x package-install wandbox` でもインストール�
 
   利用可能なコンパイラ一覧を表示します。
 
+* `wandbox-insert-template (name)`
+
+  `name` に基づいたテンプレートファイルを挿入します。
+  
+* `wandbox-select-server (name)`
+
+  利用する wandbox サーバを選択します (`wandbox-add-server` も参照)
+
 ### 関数
 
 * `wandbox`

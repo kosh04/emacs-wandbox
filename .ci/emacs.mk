@@ -15,7 +15,7 @@ ${EMACS_ARCHIVE}:
 build: ${EMACS_ARCHIVE}
 	tar xf ${EMACS_ARCHIVE}
 	cd ${NAME} && ./configure --without-all --without-x --prefix=${PREFIX}
-	cd ${NAME} && make
+	cd ${NAME} && make -j9
 
 install:
 	cd ${NAME} && make install-strip
