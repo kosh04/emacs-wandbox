@@ -261,4 +261,15 @@
                          ("program_output" . "7.0.0")
                          ("status" . "0")))))
 
+(ert-deftest wandbox--command-to-ext ()
+  (cl-loop for (cmd . ext)
+           in '(("gcc prog.c" . "c")
+                ("mcs -out:prog.exe prog.cs" . "cs")
+                ("rillc -o prog.exe prog.rill" . "rill")
+                ("ocamlfind ocamlopt -thread -linkpkg prog.ml -o prog" . "ml")
+                ;;("ponyc ./prog" . ?)
+                )
+           do (should (equal ext (wandbox--command-to-ext cmd)))))
+
+
 ;;; test-wandbox.el ends here

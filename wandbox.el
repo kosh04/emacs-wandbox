@@ -166,6 +166,14 @@ Example: compiler \"gcc-4.8.2-c\" switches will be \"warning,c11\"."
                            do (cl-pushnew template names :test #'string-equal)))
       (nreverse names)))
 
+  (defsubst wandbox--command-to-ext (cmd)
+    "Extract prog.ext from CMD (display-compiler-command)."
+    (cl-some (lambda (re)
+               (if (string-match re cmd)
+                   (match-string 1 cmd)))
+             (list (rx (+ space) #1=(: word-start "prog." (submatch (+ alnum)) word-end) eos)
+                   (rx #1#))))
+
   (defsubst wandbox--make-profiles (compilers)
     "Generate profiles from `wandbox-server-compilers' as COMPILERS."
     (cl-labels ((make-profile (compiler)
@@ -176,10 +184,7 @@ Example: compiler \"gcc-4.8.2-c\" switches will be \"warning,c11\"."
                               (if (not (string= opts ""))
                                   opts))
                   :ext ,(let ((cmd (cdr (assoc "display-compile-command" compiler))))
-                          ;; match "gcc prog.c" -> "c"
-                          ;; match "mcs -out:prog.exe prog.cs" -> "cs"
-                          (if (string-match "\\s-\\<prog\\.\\([A-Za-z0-9]+\\)\\>" cmd)
-                              (match-string 1 cmd))))))
+                          (if cmd (wandbox--command-to-ext cmd))))))
       (mapcar #'make-profile compilers)))
 
   (cl-defstruct (wandbox-server
@@ -528,7 +533,8 @@ Compiler profile is determined by file extension."
   "Compile specified region (FROM TO)."
   (interactive "r")
   (let ((profile (or (wandbox--buffer-profile)
-                     (wandbox-find-profile :ext (file-name-extension (buffer-file-name)))
+                     (and (buffer-file-name)
+                          (wandbox-find-profile :ext (file-name-extension (buffer-file-name))))
                      (wandbox-read-profile)))
         (code (buffer-substring-no-properties from to)))
     (apply #'wandbox-compile :code code profile)))
