@@ -3,8 +3,8 @@
 
 PREFIX:=${HOME}/opt
 
-NAME:=emacs-24.4
-EMACS_ARCHIVE=${NAME}.tar.xz
+EMACS:=emacs-24.4
+EMACS_ARCHIVE=${EMACS}.tar.xz
 EMACS_ARCHIVE_URL=http://ftpmirror.gnu.org/emacs/${EMACS_ARCHIVE}
 
 default: build install
@@ -14,10 +14,10 @@ ${EMACS_ARCHIVE}:
 
 build: ${EMACS_ARCHIVE}
 	tar xf ${EMACS_ARCHIVE}
-	cd ${NAME} && ./configure --without-all --without-x --prefix=${PREFIX}
-	cd ${NAME} && make -j9
+	cd ${EMACS} && ./configure --without-all --without-x --prefix=${PREFIX}
+	cd ${EMACS} && make -j9
 
 install:
-	cd ${NAME} && make install-strip
+	cd ${EMACS} && make install-strip
 
 .PHONY: build install
