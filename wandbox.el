@@ -68,6 +68,7 @@
 
 ;;; Code:
 
+(require 'ansi-color)
 (require 'cl-lib)
 (require 'json)
 (require 'tabulated-list)
@@ -385,6 +386,11 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
       (setq-local font-lock-defaults '(gfm-font-lock-keywords))
       (font-lock-mode t))))
 
+(defsubst wandbox--ansi-color-apply-buffer (buffer)
+  (with-current-buffer buffer
+    (let (buffer-read-only)
+      (ansi-color-apply-on-region (point-min) (point-max)))))
+
 (defsubst wandbox--dump (request-response)
   "Print result from REQUEST-RESPONSE."
   (wandbox--setup-markdown-font-lock)
@@ -412,7 +418,9 @@ JSON data for http post is build from PROFILE."
                   (when (and url (functionp wandbox-permalink-action))
                     (funcall wandbox-permalink-action url)))
                 (with-output-to-temp-buffer wandbox-output-buffer
-                  (wandbox--dump response)))
+                  (wandbox--dump response))
+                (wandbox--ansi-color-apply-buffer wandbox-output-buffer)
+                t)
               (onerror (&key error-thrown &allow-other-keys)
                 (message "HTTP error: %S" error-thrown))
               (parser ()
