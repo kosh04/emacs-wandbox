@@ -345,8 +345,8 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                      :compiler-option :runtime-option)))
     ;; NOTE: Order to merge profile
     ;; 1. expand :file (:gist) to :code
-    ;; 2. expand buffer-profile
-    ;; 3. expand :name, :lang
+    ;; 2. expand :name, :lang
+    ;; 3. expand buffer-profile
     ;; 4. function args :compiler, :options, ...
     (setq profile (apply #'wandbox--merge-profile profile wandbox-precompiled-hook))
     (setq profile (wandbox--merge-profile
@@ -359,12 +359,6 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                           ,@(wandbox-find-profile :ext (file-name-extension file))))))
                    ;; 2.
                    (cl-function
-                    (lambda (&key code &allow-other-keys)
-                      (when code (with-temp-buffer
-                                   (insert code)
-                                   (wandbox--buffer-profile)))))
-                   ;; 3.
-                   (cl-function
                     (lambda (&key name lang &allow-other-keys)
                       (let ((profiles (wandbox--profiles)))
                         (cond
@@ -372,6 +366,12 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                                    (error "Not found :name %s" name)))
                          (lang (or (wandbox-find-profile :lang lang profiles)
                                    (error "Not found :lang %s" lang)))))))
+                   ;; 3.
+                   (cl-function
+                    (lambda (&key code &allow-other-keys)
+                      (when code (with-temp-buffer
+                                   (insert code)
+                                   (wandbox--buffer-profile)))))
                    ;; 4.
                    (cl-function
                     (lambda (&rest _)
