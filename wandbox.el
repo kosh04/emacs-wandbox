@@ -101,7 +101,8 @@
                   (const "permlink" :tag "/permlink/:link")
                   (const "url" :tag "URL to display on browser"))))
 
-(defcustom wandbox-profiles nil
+(defcustom wandbox-profiles
+  '((:lang "C++" :compiler "gcc-head" :ext "cpp"))
   "User-defined copmiler settings."
   :group 'wandbox
   :type  '(list (plist
@@ -302,6 +303,10 @@ It returns
     (dolist (f functions p)
       (setq p (wandbox--merge-plist p (apply f p))))))
 
+(defsubst wandbox--profiles (&optional server)
+  (append (wandbox-server-profiles (or server (wandbox-default-server)))
+          wandbox-profiles))
+
 (cl-defun wandbox-build-request-data-raw (&rest profile
                                           &key compiler options code stdin save
                                                compiler-option runtime-option
@@ -348,7 +353,9 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                    ;; 1.
                    (cl-function
                     (lambda (&key file &allow-other-keys)
-                      (when file `(:code ,(wandbox-fetch file)))))
+                      (when file
+                        `(:code ,(wandbox-fetch file)
+                          ,@(wandbox-find-profile :ext (file-name-extension file))))))
                    ;; 2.
                    (cl-function
                     (lambda (&key code &allow-other-keys)
@@ -358,10 +365,9 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                    ;; 3.
                    (cl-function
                     (lambda (&key name lang &allow-other-keys)
-                      (let ((profiles (wandbox-server-profiles server)))
+                      (let ((profiles (wandbox--profiles)))
                         (cond
-                         (name (or (wandbox-find-profile :name name wandbox-profiles)
-                                   (wandbox-find-profile :name name profiles)
+                         (name (or (wandbox-find-profile :name name profiles)
                                    (error "Not found :name %s" name)))
                          (lang (or (wandbox-find-profile :lang lang profiles)
                                    (error "Not found :lang %s" lang)))))))
@@ -496,8 +502,7 @@ List of available server values, see `wandbox-list-compilers'."
   (add-to-list 'wandbox-precompiled-hook #'wandbox-option-code t))
 
 (cl-defun wandbox-find-profile (key item &optional
-                                (profiles (wandbox-server-profiles
-                                           (wandbox-default-server))))
+                                    (profiles (wandbox--profiles)))
   "Find the profile match KEY and ITEM."
   ;; (find item wandbox-profiles
   ;;       :key (lambda (x) (plist-get x key))
@@ -512,10 +517,8 @@ List of available server values, see `wandbox-list-compilers'."
   "Read a profile setting.
 Completion list is generate from matchs KEY."
   (let* ((completion-ignore-case t)
-         (profiles (wandbox-server-profiles
-                    (wandbox-default-server)))
          (items (mapcar (lambda (x) (plist-get x key))
-                        profiles))
+                        (wandbox--profiles)))
          (name (completing-read "Profile: " items)))
     (wandbox-find-profile key name)))
 
