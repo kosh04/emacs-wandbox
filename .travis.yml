@@ -10,7 +10,7 @@ env:
   - EMACS=emacs-25.2
   
 before_install:
-  - make -C .ci -f emacs.mk EMACS_NAME=${EMACS} PREFIX=${HOME}/opt
+  - make -C .ci -f emacs.mk EMACS_VERSION=${EMACS} PREFIX=${HOME}/opt
   - export PATH=${PATH}:${HOME}/opt/bin
   - ${EMACS} --version
 
