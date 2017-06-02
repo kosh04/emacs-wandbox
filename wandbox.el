@@ -4,7 +4,7 @@
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.6.3
+;; Version: 0.6.4
 ;; Package-Requires: ((emacs "24") (request "0.3.0") (s "1.10.0"))
 ;; Keywords: tools
 ;; Created: 2013/11/22
@@ -50,6 +50,7 @@
 
 ;;; Change Log:
 
+;; 2017-06-02 ver 0.6.4  fix prog.cpp profile as C++
 ;; 2017-04-26 ver 0.6.3  template API available / show details in the compiler list
 ;; 2017-03-23 ver 0.6.2  change URL
 ;; 2016-05-04 ver 0.6.1  customize variables
@@ -102,8 +103,9 @@
                   (const "permlink" :tag "/permlink/:link")
                   (const "url" :tag "URL to display on browser"))))
 
-(defcustom wandbox-profiles
-  '((:lang "C++" :compiler "gcc-head" :ext "cpp"))
+(defcustom wandbox-user-profiles
+  '((:lang "C++" :compiler "gcc-head" :ext "cc")
+    (:lang "C++" :compiler "gcc-head" :ext "cpp"))
   "User-defined copmiler settings."
   :group 'wandbox
   :type  '(list (plist
@@ -111,6 +113,9 @@
                  :key-type   (symbol :tag "Compile parameter")
                  :value-type (choice (string)
                                      (boolean :tag "(:save only)")))))
+
+(define-obsolete-variable-alias 'wandbox-profiles
+  'wandbox-user-profiles "wandbox-0.6.4")
 
 (defcustom wandbox-precompiled-hook nil
   "Hook run before post wandbox.
@@ -304,9 +309,11 @@ It returns
     (dolist (f functions p)
       (setq p (wandbox--merge-plist p (apply f p))))))
 
-(defsubst wandbox--profiles (&optional server)
-  (append (wandbox-server-profiles (or server (wandbox-default-server)))
-          wandbox-profiles))
+(defun wandbox-profiles (&optional server)
+  "List available profiles."
+  (append
+   wandbox-user-profiles
+   (wandbox-server-profiles (or server (wandbox-default-server)))))
 
 (cl-defun wandbox-build-request-data-raw (&rest profile
                                           &key compiler options code stdin save
@@ -317,7 +324,7 @@ It returns
                 (mapconcat #'(lambda (x) (format "%s" x)) list separator))
               (val  (x) (or x ""))
               (bool (x) (if x t :json-false))
-              (raw  (x) (if (consp x) (join-as-string x "\n") x))
+              (raw  (x) (if (consp x) (join-as-string x "\n") (val x)))
               (compiler-exist-p (server name)
                 (let ((compiler-names
                        (mapcar (lambda (x) (cdr (assoc "name" x)))
@@ -360,7 +367,7 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                    ;; 2.
                    (cl-function
                     (lambda (&key name lang &allow-other-keys)
-                      (let ((profiles (wandbox--profiles)))
+                      (let ((profiles (wandbox-profiles)))
                         (cond
                          (name (or (wandbox-find-profile :name name profiles)
                                    (error "Not found :name %s" name)))
@@ -473,7 +480,7 @@ for multi programming language (C/C++, Python, PHP, Common Lisp, etc).
 Options:
 
 * LANG is language name. (e.g. \"Ruby\")
-* NAME is select compiler template from `wandbox-profiles' or default compiler settings.
+* NAME is select compiler template from `wandbox-user-profiles' or default compiler settings.
 * FILE is file contents instead of CODE.
 * SYNC is synchronous mode. (debug)
 * SERVER-NAME is server name. (default `wandbox-default-server-name')
@@ -510,9 +517,9 @@ List of available server values, see `wandbox-list-compilers'."
   (add-to-list 'wandbox-precompiled-hook #'wandbox-option-code t))
 
 (cl-defun wandbox-find-profile (key item &optional
-                                    (profiles (wandbox--profiles)))
+                                    (profiles (wandbox-profiles)))
   "Find the profile match KEY and ITEM."
-  ;; (find item wandbox-profiles
+  ;; (find item wandbox-user-profiles
   ;;       :key (lambda (x) (plist-get x key))
   ;;       :test #'string-equal)
   (when (stringp item)
@@ -526,7 +533,7 @@ List of available server values, see `wandbox-list-compilers'."
 Completion list is generate from matchs KEY."
   (let* ((completion-ignore-case t)
          (items (mapcar (lambda (x) (plist-get x key))
-                        (wandbox--profiles)))
+                        (wandbox-profiles)))
          (name (completing-read "Profile: " items)))
     (wandbox-find-profile key name)))
 
