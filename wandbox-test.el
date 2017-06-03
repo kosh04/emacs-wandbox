@@ -152,6 +152,14 @@
              ("compiler-option-raw" . "")
              ("runtime-option-raw" . "")
              ("save" . :json-false))))
+  (should (alist-subsetp
+           '(("compiler" . "gcc-head-c")
+             ("options" . "warning,gnu11,cpp-no-pedantic")
+             ("code" . "main(){}"))
+           (wandbox-build-request-data
+            :lang "C"
+            :code "main(){}"
+            :server (wandbox-default-server))))
   (should (alist-subsetp '(("compiler" . "ruby-head"))
                          (wandbox-build-request-data :name "ruby HEAD")))
   (should (alist-subsetp '(("compiler" . "mruby-head"))
@@ -165,19 +173,8 @@
 
 (ert-deftest wandbox-find-profile ()
   (should (plist-subsetp '(:lang "C++"
-                           :name "gcc HEAD"
                            :compiler "gcc-head")
                          (wandbox-find-profile :compiler "gcc-head"))))
-
-(ert-deftest wandbox-build-request-data ()
-  "Test request data."
-  (should (alist-subsetp '(("compiler" . "gcc-head-c")
-                           ("options" . "warning,gnu11,cpp-no-pedantic")
-                           ("code" . "main(){}"))
-                         (wandbox-build-request-data
-                          :lang "C"
-                          :code "main(){}"
-                          :server (wandbox-default-server)))))
 
 (ert-deftest wandbox-test-buffer-profile ()
   "Test buffer-profile."
@@ -222,11 +219,11 @@
 
 (ert-deftest wandbox-user-profile ()
   "Test user defined profile."
-  (let ((wandbox-profiles nil)
+  (let ((wandbox-user-profiles nil)
         (f (lambda ()
              (wandbox :name "gcc-latest" :code "main(){ return 0; }" :sync t))))
     (should-error (funcall f))
-    (add-to-list 'wandbox-profiles '(:name "gcc-latest" :compiler "gcc-head"))
+    (add-to-list 'wandbox-user-profiles '(:name "gcc-latest" :compiler "gcc-head"))
     (should (alist-equal '(("status" . "0"))
                          (funcall f)))))
 

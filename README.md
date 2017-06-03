@@ -38,6 +38,12 @@ Installation
 (global-set-key (kbd "C-c w e") 'wandbox-eval-last-sexp)
 (global-set-key (kbd "C-c w i") 'wandbox-insert-template)
 (global-set-key (kbd "C-c w l") 'wandbox-list-compilers)
+;; prefer Clang to GCC
+(custom-set-variables
+ '(wandbox-user-profiles
+   '((:lang "C" :compiler "clang-head-c" :ext "c")
+     (:lang "C++" :compiler "clang-head" :ext "cc")
+     (:lang "C++" :compiler "clang-head" :ext "cpp"))))
 ```
 
 Usage

@@ -4,7 +4,7 @@
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.6.3
+;; Version: 0.6.4
 ;; Package-Requires: ((emacs "24") (request "0.3.0") (s "1.10.0"))
 ;; Keywords: tools
 ;; Created: 2013/11/22
@@ -50,6 +50,7 @@
 
 ;;; Change Log:
 
+;; 2017-06-02 ver 0.6.4  fix prog.cpp profile as C++
 ;; 2017-04-26 ver 0.6.3  template API available / show details in the compiler list
 ;; 2017-03-23 ver 0.6.2  change URL
 ;; 2016-05-04 ver 0.6.1  customize variables
@@ -68,6 +69,7 @@
 
 ;;; Code:
 
+(require 'ansi-color)
 (require 'cl-lib)
 (require 'json)
 (require 'tabulated-list)
@@ -101,7 +103,9 @@
                   (const "permlink" :tag "/permlink/:link")
                   (const "url" :tag "URL to display on browser"))))
 
-(defcustom wandbox-profiles nil
+(defcustom wandbox-user-profiles
+  '((:lang "C++" :compiler "gcc-head" :ext "cc")
+    (:lang "C++" :compiler "gcc-head" :ext "cpp"))
   "User-defined copmiler settings."
   :group 'wandbox
   :type  '(list (plist
@@ -109,6 +113,9 @@
                  :key-type   (symbol :tag "Compile parameter")
                  :value-type (choice (string)
                                      (boolean :tag "(:save only)")))))
+
+(define-obsolete-variable-alias 'wandbox-profiles
+  'wandbox-user-profiles "wandbox-0.6.4")
 
 (defcustom wandbox-precompiled-hook nil
   "Hook run before post wandbox.
@@ -302,6 +309,12 @@ It returns
     (dolist (f functions p)
       (setq p (wandbox--merge-plist p (apply f p))))))
 
+(defun wandbox-profiles (&optional server)
+  "List available profiles."
+  (append
+   wandbox-user-profiles
+   (wandbox-server-profiles (or server (wandbox-default-server)))))
+
 (cl-defun wandbox-build-request-data-raw (&rest profile
                                           &key compiler options code stdin save
                                                compiler-option runtime-option
@@ -311,7 +324,7 @@ It returns
                 (mapconcat #'(lambda (x) (format "%s" x)) list separator))
               (val  (x) (or x ""))
               (bool (x) (if x t :json-false))
-              (raw  (x) (if (consp x) (join-as-string x "\n") x))
+              (raw  (x) (if (consp x) (join-as-string x "\n") (val x)))
               (compiler-exist-p (server name)
                 (let ((compiler-names
                        (mapcar (lambda (x) (cdr (assoc "name" x)))
@@ -339,8 +352,8 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                      :compiler-option :runtime-option)))
     ;; NOTE: Order to merge profile
     ;; 1. expand :file (:gist) to :code
-    ;; 2. expand buffer-profile
-    ;; 3. expand :name, :lang
+    ;; 2. expand :name, :lang
+    ;; 3. expand buffer-profile
     ;; 4. function args :compiler, :options, ...
     (setq profile (apply #'wandbox--merge-profile profile wandbox-precompiled-hook))
     (setq profile (wandbox--merge-profile
@@ -348,23 +361,24 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                    ;; 1.
                    (cl-function
                     (lambda (&key file &allow-other-keys)
-                      (when file `(:code ,(wandbox-fetch file)))))
+                      (when file
+                        `(:code ,(wandbox-fetch file)
+                          ,@(wandbox-find-profile :ext (file-name-extension file))))))
                    ;; 2.
+                   (cl-function
+                    (lambda (&key name lang &allow-other-keys)
+                      (let ((profiles (wandbox-profiles)))
+                        (cond
+                         (name (or (wandbox-find-profile :name name profiles)
+                                   (error "Not found :name %s" name)))
+                         (lang (or (wandbox-find-profile :lang lang profiles)
+                                   (error "Not found :lang %s" lang)))))))
+                   ;; 3.
                    (cl-function
                     (lambda (&key code &allow-other-keys)
                       (when code (with-temp-buffer
                                    (insert code)
                                    (wandbox--buffer-profile)))))
-                   ;; 3.
-                   (cl-function
-                    (lambda (&key name lang &allow-other-keys)
-                      (let ((profiles (wandbox-server-profiles server)))
-                        (cond
-                         (name (or (wandbox-find-profile :name name wandbox-profiles)
-                                   (wandbox-find-profile :name name profiles)
-                                   (error "Not found :name %s" name)))
-                         (lang (or (wandbox-find-profile :lang lang profiles)
-                                   (error "Not found :lang %s" lang)))))))
                    ;; 4.
                    (cl-function
                     (lambda (&rest _)
@@ -378,6 +392,11 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
     (with-current-buffer wandbox-output-buffer
       (setq-local font-lock-defaults '(gfm-font-lock-keywords))
       (font-lock-mode t))))
+
+(defsubst wandbox--ansi-color-apply-buffer (buffer)
+  (with-current-buffer buffer
+    (let (buffer-read-only)
+      (ansi-color-apply-on-region (point-min) (point-max)))))
 
 (defsubst wandbox--dump (request-response)
   "Print result from REQUEST-RESPONSE."
@@ -406,7 +425,9 @@ JSON data for http post is build from PROFILE."
                   (when (and url (functionp wandbox-permalink-action))
                     (funcall wandbox-permalink-action url)))
                 (with-output-to-temp-buffer wandbox-output-buffer
-                  (wandbox--dump response)))
+                  (wandbox--dump response))
+                (wandbox--ansi-color-apply-buffer wandbox-output-buffer)
+                t)
               (onerror (&key error-thrown &allow-other-keys)
                 (message "HTTP error: %S" error-thrown))
               (parser ()
@@ -459,7 +480,7 @@ for multi programming language (C/C++, Python, PHP, Common Lisp, etc).
 Options:
 
 * LANG is language name. (e.g. \"Ruby\")
-* NAME is select compiler template from `wandbox-profiles' or default compiler settings.
+* NAME is select compiler template from `wandbox-user-profiles' or default compiler settings.
 * FILE is file contents instead of CODE.
 * SYNC is synchronous mode. (debug)
 * SERVER-NAME is server name. (default `wandbox-default-server-name')
@@ -496,10 +517,9 @@ List of available server values, see `wandbox-list-compilers'."
   (add-to-list 'wandbox-precompiled-hook #'wandbox-option-code t))
 
 (cl-defun wandbox-find-profile (key item &optional
-                                (profiles (wandbox-server-profiles
-                                           (wandbox-default-server))))
+                                    (profiles (wandbox-profiles)))
   "Find the profile match KEY and ITEM."
-  ;; (find item wandbox-profiles
+  ;; (find item wandbox-user-profiles
   ;;       :key (lambda (x) (plist-get x key))
   ;;       :test #'string-equal)
   (when (stringp item)
@@ -512,10 +532,8 @@ List of available server values, see `wandbox-list-compilers'."
   "Read a profile setting.
 Completion list is generate from matchs KEY."
   (let* ((completion-ignore-case t)
-         (profiles (wandbox-server-profiles
-                    (wandbox-default-server)))
          (items (mapcar (lambda (x) (plist-get x key))
-                        profiles))
+                        (wandbox-profiles)))
          (name (completing-read "Profile: " items)))
     (wandbox-find-profile key name)))
 
