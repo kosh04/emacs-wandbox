@@ -1,10 +1,10 @@
 ;;; wandbox.el --- Wandbox client
 
-;; Copyright (C) 2013-2017 KOBAYASHI Shigeru
+;; Copyright (C) 2013-2019 KOBAYASHI Shigeru
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.6.4
+;; Version: 0.7.0-git
 ;; Package-Requires: ((emacs "24") (request "0.3.0") (s "1.10.0"))
 ;; Keywords: tools
 ;; Created: 2013/11/22
@@ -36,7 +36,7 @@
 ;;
 ;; ## Use on Emacs Lisp
 ;;
-;; (wandbox :compiler "gcc-head" :options "warning" :code "main(){}")
+;; (wandbox :compiler "clang-head" :options "warning" :code "main(){}")
 ;; (wandbox :lang "C" :compiler-option "-lm" :file "/path/to/prog.c" :save t)
 ;; (wandbox :lang "perl" :code "while (<>) { print uc($_); }" :stdin "hello")
 ;; (wandbox :lang "ruby" :code "p ARGV" :runtime-option '("1" "2" "3"))
@@ -50,6 +50,7 @@
 
 ;;; Change Log:
 
+;; 2019-05-10 ver 0.7.0  new output buffer feature. update looking, and pseudo real-time output.
 ;; 2017-06-02 ver 0.6.4  fix prog.cpp profile as C++
 ;; 2017-04-26 ver 0.6.3  template API available / show details in the compiler list
 ;; 2017-03-23 ver 0.6.2  change URL
@@ -73,6 +74,9 @@
 (require 'cl-lib)
 (require 'json)
 (require 'tabulated-list)
+(require 'compile)                      ; compilation faces
+(eval-when-compile
+  (require 'pcase))
 (require 's)
 (require 'request)
 
@@ -81,7 +85,7 @@
   :prefix "wandbox-"
   :link '(emacs-commentary-link "wandbox")
   :link '(url-link "https://github.com/kosh04/emacs-wandbox")
-  :group  'tools)
+  :group 'tools)
 
 (defcustom wandbox-response-keywords
   '("compiler_message"
@@ -134,6 +138,27 @@ Return value will be merged into the old profile."
   :group 'wandbox
   :type  'string)
 
+(defface wandbox-output-header
+  '((t :weight bold :background "light green"))
+  "Wandbox face for output header.")
+
+(defface wandbox-output-keyword
+  '((t :weight bold))
+  "Wandbox face for output keyword.")
+
+(defface wandbox-output-data
+  '((t ))
+  "Wandbox face for output data.")
+
+(defmacro with-wandbox-buffer (bufname &rest body)
+  (declare (indent 1) (debug t))
+  `(let ((#1=#:buffer (get-buffer-create ,bufname)))
+     (with-current-buffer #1#
+       (let ((inhibit-read-only t)
+             (inhibit-modification-hooks t))
+         (erase-buffer)
+         ,@body))))
+
 (cl-eval-when (compile load eval)
 
   (defun wandbox-fetch (src)
@@ -146,7 +171,9 @@ Return value will be merged into the old profile."
 
   (defsubst wandbox--json-decode (string)
     "Decode json object in STRING."
-    (let ((json-key-type 'string))
+    (let ((json-key-type 'string)
+          (json-object-type 'alist)
+          (json-array-type 'vector))
       (json-read-from-string string)))
 
   (defsubst wandbox--json-load (src)
@@ -303,7 +330,7 @@ It returns
           (setq params (plist-put params key val)))))
     params))
 
-(defsubst wandbox--merge-profile (profile &rest functions)
+(defun wandbox--merge-profile (profile &rest functions)
   "Merge PROFILE by fold FUNCTIONS."
   (let ((p (copy-sequence profile)))
     (dolist (f functions p)
@@ -367,7 +394,7 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                    ;; 2.
                    (cl-function
                     (lambda (&key name lang &allow-other-keys)
-                      (let ((profiles (wandbox-profiles)))
+                      (let ((profiles (wandbox-profiles server)))
                         (cond
                          (name (or (wandbox-find-profile :name name profiles)
                                    (error "Not found :name %s" name)))
@@ -386,35 +413,41 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
                       other-spec))))
     (apply #'wandbox-build-request-data-raw :server server profile)))
 
-(defsubst wandbox--setup-markdown-font-lock ()
-  "Use markdown font lock in `wandbox-output-buffer' (in-progress)."
-  (when (require 'markdown-mode nil t)
-    (with-current-buffer wandbox-output-buffer
-      (setq-local font-lock-defaults '(gfm-font-lock-keywords))
-      (font-lock-mode t))))
-
-(defsubst wandbox--ansi-color-apply-buffer (buffer)
-  (with-current-buffer buffer
-    (let (buffer-read-only)
-      (ansi-color-apply-on-region (point-min) (point-max)))))
-
-(defsubst wandbox--dump (request-response)
+(defun wandbox--dump (request-response)
   "Print result from REQUEST-RESPONSE."
-  (wandbox--setup-markdown-font-lock)
-  (cl-labels ((println (&optional (fmt "") &rest args)
-                (princ (apply #'format fmt args))
-                (terpri)))
-    (let* ((data (request-response-data request-response))
+  (cl-labels ((prn (&optional type (fmt "") &rest args)
+                (let ((str (apply #'format fmt args))
+                      (face (pcase type
+                              ('header 'wandbox-output-header)
+                              ('key 'wandbox-output-keyword)
+                              ('val 'wandbox-output-data))))
+                  (insert (propertize str 'face face) "\n"))))
+    (let* ((inhibit-read-only t)
+           (data (request-response-data request-response))
            (settings (request-response-settings request-response))
-           (param (wandbox--json-decode (plist-get settings :data)))
+           (json (plist-get settings :data))
+           (param (wandbox--json-decode json))
            (compiler (cdr (assoc "compiler" param))))
-      (println "## %s" compiler)
+      ;; Header
+      (prn 'header "# compiler=%s" compiler)
+      ;; Key, Value
       (dolist (key wandbox-response-keywords)
         (let ((val (cdr (assoc key data))))
           (when val
-            (println "* [%s]" key)
-            (println "%s" val))))
-      (println))))
+            (prn 'key "## %s" key)
+            (prn 'val "%s" val))))
+      (ansi-color-apply-on-region (point-min) (point-max))
+      ;; Debug Output
+      (when wandbox--verbose
+        (prn 'key "## %s" "input_param")
+        (prn 'val "%s" (with-temp-buffer
+                         (insert json)
+                         (json-pretty-print-buffer)
+                         (buffer-string)))
+        (prn 'key "## %s" "output_param")
+        (prn 'val "%s" (pp-to-string data))))
+    (goto-char (point-min)))
+  t)
 
 (cl-defun wandbox-post (server profile &key sync (callback #'identity))
   "Send a compile request to wandbox SERVER.
@@ -424,10 +457,14 @@ JSON data for http post is build from PROFILE."
                 (let ((url (cdr (assoc "url" data))))
                   (when (and url (functionp wandbox-permalink-action))
                     (funcall wandbox-permalink-action url)))
-                (with-output-to-temp-buffer wandbox-output-buffer
-                  (wandbox--dump response))
-                (wandbox--ansi-color-apply-buffer wandbox-output-buffer)
-                t)
+                (with-current-buffer (get-buffer-create wandbox-output-buffer)
+                  (wandbox--dump response)
+                  (setq mode-line-process
+                        (if (equal "0" (cdr (assoc "status" data)))
+                            '((:propertize ":exit" face compilation-mode-line-exit))
+                          '((:propertize ":error" face compilation-mode-line-fail))))
+                  (view-mode +1)
+                  ))
               (onerror (&key error-thrown &allow-other-keys)
                 (message "HTTP error: %S" error-thrown))
               (parser ()
@@ -439,6 +476,15 @@ JSON data for http post is build from PROFILE."
            (data (json-encode param)))
       (wandbox--log "send request: %S" param)
       (setq data (encode-coding-string data 'raw-text))
+      ;; Setup and Ready output buffer
+      (when (not sync)
+        (let ((buffer (get-buffer-create wandbox-output-buffer)))
+          (with-current-buffer buffer
+            (let ((inhibit-read-only t))
+              (erase-buffer))
+            (setq mode-line-process '((:propertize ":run" face compilation-mode-line-run)))
+            (force-mode-line-update))
+          (display-buffer buffer)))
       (funcall callback
                (request url
                         :type "POST"
@@ -456,8 +502,15 @@ JSON data for http post is build from PROFILE."
                                      (let ((param (wandbox--merge-plist profile p)))
                                        (wandbox-post server param :sync t)))
                             profiles)))
-    (with-output-to-temp-buffer wandbox-output-buffer
-      (cl-mapc #'wandbox--dump response*))
+    (let ((buffer (get-buffer-create wandbox-output-buffer)))
+      (with-current-buffer buffer
+        (let ((inhibit-read-only t))
+          (erase-buffer)
+          (cl-mapc #'wandbox--dump response*))
+        (setq mode-line-process
+              '((:propertize ":exit" face compilation-mode-line-exit)))
+        (view-mode +1))
+      (display-buffer buffer))
     (cl-map type #'request-response-data response*)))
 
 ;;;###autoload
@@ -620,21 +673,32 @@ Compiler profile is determined by file extension."
   (let ((map (make-sparse-keymap)))
     (set-keymap-parent map tabulated-list-mode-map)
     (define-key map (kbd "RET") 'wandbox-menu-select)
+    (define-key map (kbd "g") 'wandbox-update-compilers)
     map)
   "Local keymap for `wandbox-menu-mode' buffers.")
 
-(defun wandbox-menu-select ()
+(defun wandbox-menu-select (compiler)
   "Show details about compiler information at point."
+  (interactive (list (tabulated-list-get-id)))
+  (with-current-buffer (get-buffer-create "*Wandbox Compiler Info*")
+    (let ((json-encoding-pretty-print t))
+      (insert (json-encode compiler)))
+    ;; TODO: fontify as json-mode
+    (font-lock-ensure)
+    (display-buffer (current-buffer))))
+
+;; FIXME: use `tabulated-list-rever-hook'
+(defun wandbox-update-compilers ()
+  "Update `wandbox-servers' and byte-compile wandbox.el"
   (interactive)
-  (let ((compiler (tabulated-list-get-id)))
-    (with-output-to-temp-buffer "*Wandbox Compiler Info*"
-      (let ((json-encoding-pretty-print t))
-        (princ (json-encode compiler))))))
+  (setq wandbox-servers
+        (list
+         (wandbox-create-server "melpon" "https://wandbox.org")))
+  (tabulated-list-revert)
+  (message "Update compilers...done"))
 
 (define-derived-mode wandbox-menu-mode tabulated-list-mode "Wandbox Compilers"
-  "Display available complers list.
-\\<wandbox-menu-mode-map>
-\\{wandbox-menu-mode-map}"
+  "Display available complers list."
   (let ((server (wandbox-default-server)))
     (setq tabulated-list-format [("Language" 12 t)
                                  ("Name"     15 t)
@@ -647,15 +711,14 @@ Compiler profile is determined by file extension."
     (setq tabulated-list-entries
           (let ((compilers (wandbox-server-compilers server)))
             (mapcar (lambda (item)
-                      (prog1
-                          (list item (vector
-                                      (cdr (assoc "language" item))
-                                      (cdr (assoc "display-name" item))
-                                      (cdr (assoc "name" item))
-                                      (cdr (assoc "version" item))
-                                      (cdr (assoc "display-compile-command" item))
-                                      (wandbox--default-compiler-options
-                                       (cdr (assoc "name" item)) compilers)))))
+                      (list item (vector
+                                  (cdr (assoc "language" item))
+                                  (cdr (assoc "display-name" item))
+                                  (cdr (assoc "name" item))
+                                  (cdr (assoc "version" item))
+                                  (cdr (assoc "display-compile-command" item))
+                                  (wandbox--default-compiler-options
+                                   (cdr (assoc "name" item)) compilers))))
                     compilers)))
     (tabulated-list-init-header)
     (message "%s" (wandbox-server-location server))
