@@ -4,7 +4,7 @@
 
 ;; Author: KOBAYASHI Shigeru (kosh) <shigeru.kb@gmail.com>
 ;; URL: https://github.com/kosh04/emacs-wandbox
-;; Version: 0.7.0-git
+;; Version: 0.7.0-beta
 ;; Package-Requires: ((emacs "24") (request "0.3.0") (s "1.10.0"))
 ;; Keywords: tools
 ;; Created: 2013/11/22
@@ -50,7 +50,7 @@
 
 ;;; Change Log:
 
-;; 2019-05-10 ver 0.7.0  new output buffer feature. update looking, and pseudo real-time output.
+;; 2019-05-10 ver 0.7.0  (beta) improve output buffer. faces, and pseudo real-time display.
 ;; 2017-06-02 ver 0.6.4  fix prog.cpp profile as C++
 ;; 2017-04-26 ver 0.6.3  template API available / show details in the compiler list
 ;; 2017-03-23 ver 0.6.2  change URL
@@ -75,8 +75,6 @@
 (require 'json)
 (require 'tabulated-list)
 (require 'compile)                      ; compilation faces
-(eval-when-compile
-  (require 'pcase))
 (require 's)
 (require 'request)
 
@@ -109,7 +107,8 @@
 
 (defcustom wandbox-user-profiles
   '((:lang "C++" :compiler "gcc-head" :ext "cc")
-    (:lang "C++" :compiler "gcc-head" :ext "cpp"))
+    (:lang "C++" :compiler "gcc-head" :ext "cpp")
+    (:lang "Lisp" :compiler "sbcl-head" :ext "lisp"))
   "User-defined copmiler settings."
   :group 'wandbox
   :type  '(list (plist
@@ -138,8 +137,11 @@ Return value will be merged into the old profile."
   :group 'wandbox
   :type  'string)
 
+
+;; Faces
+
 (defface wandbox-output-header
-  '((t :weight bold :background "light green"))
+  '((t :weight bold :background "systemGreenColor"))
   "Wandbox face for output header.")
 
 (defface wandbox-output-keyword
@@ -147,17 +149,9 @@ Return value will be merged into the old profile."
   "Wandbox face for output keyword.")
 
 (defface wandbox-output-data
-  '((t ))
+  '((t :background "gray90"))
   "Wandbox face for output data.")
 
-(defmacro with-wandbox-buffer (bufname &rest body)
-  (declare (indent 1) (debug t))
-  `(let ((#1=#:buffer (get-buffer-create ,bufname)))
-     (with-current-buffer #1#
-       (let ((inhibit-read-only t)
-             (inhibit-modification-hooks t))
-         (erase-buffer)
-         ,@body))))
 
 (cl-eval-when (compile load eval)
 
@@ -269,6 +263,17 @@ Example: compiler \"gcc-4.8.2-c\" switches will be \"warning,c11\"."
   "Register wandbox server LOCATION as named NAME."
   (or (wandbox-find-server name)
       (add-to-list 'wandbox-servers (wandbox-create-server name location))))
+
+(defmacro with-wandbox-output-buffer (options &rest body)
+  "Execute the forms in BODY with `wandbox-output-buffer'.
+OPTIONS is plist, like () or (:erase t)."
+  (declare (indent 1) (debug t))
+  `(with-current-buffer (get-buffer-create wandbox-output-buffer)
+     ;; TODO: see `with-output-to-temp-buffer'
+     (let ((inhibit-read-only t)
+           (inhibit-modification-hooks t))
+       (if (plist-get ',options :erase) (erase-buffer))
+       ,@body)))
 
 (defsubst wandbox--merge-plist (&rest args)
   "Merge all the given ARGS into a new plist (destructive)."
@@ -416,14 +421,14 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
 (defun wandbox--dump (request-response)
   "Print result from REQUEST-RESPONSE."
   (cl-labels ((prn (&optional type (fmt "") &rest args)
+                ;; TODO: more better function call a FORMAT and PROPERTIES
                 (let ((str (apply #'format fmt args))
-                      (face (pcase type
-                              ('header 'wandbox-output-header)
-                              ('key 'wandbox-output-keyword)
-                              ('val 'wandbox-output-data))))
+                      (face (cl-case type
+                              (header 'wandbox-output-header)
+                              (key 'wandbox-output-keyword)
+                              (val 'wandbox-output-data))))
                   (insert (propertize str 'face face) "\n"))))
-    (let* ((inhibit-read-only t)
-           (data (request-response-data request-response))
+    (let* ((data (request-response-data request-response))
            (settings (request-response-settings request-response))
            (json (plist-get settings :data))
            (param (wandbox--json-decode json))
@@ -453,18 +458,17 @@ PROFILE is property list. e.g. (:compiler COMPILER-NAME :options OPTS ...)"
   "Send a compile request to wandbox SERVER.
 JSON data for http post is build from PROFILE."
   (cl-labels ((onsuccess (&key data response &allow-other-keys)
-                (wandbox--log "recieve: %S" data)
+                ;;(wandbox--log "recieve: %S" data)
                 (let ((url (cdr (assoc "url" data))))
                   (when (and url (functionp wandbox-permalink-action))
                     (funcall wandbox-permalink-action url)))
-                (with-current-buffer (get-buffer-create wandbox-output-buffer)
+                (with-wandbox-output-buffer ()
                   (wandbox--dump response)
                   (setq mode-line-process
                         (if (equal "0" (cdr (assoc "status" data)))
                             '((:propertize ":exit" face compilation-mode-line-exit))
-                          '((:propertize ":error" face compilation-mode-line-fail))))
-                  (view-mode +1)
-                  ))
+                          '((:propertize ":error" face compilation-mode-line-fail)))))
+                t)
               (onerror (&key error-thrown &allow-other-keys)
                 (message "HTTP error: %S" error-thrown))
               (parser ()
@@ -474,17 +478,15 @@ JSON data for http post is build from PROFILE."
     (let* ((url (wandbox-server-api/compile server))
            (param (apply #'wandbox-build-request-data :server server profile))
            (data (json-encode param)))
-      (wandbox--log "send request: %S" param)
+      ;;(wandbox--log "send request: %S" param)
       (setq data (encode-coding-string data 'raw-text))
       ;; Setup and Ready output buffer
       (when (not sync)
-        (let ((buffer (get-buffer-create wandbox-output-buffer)))
-          (with-current-buffer buffer
-            (let ((inhibit-read-only t))
-              (erase-buffer))
-            (setq mode-line-process '((:propertize ":run" face compilation-mode-line-run)))
-            (force-mode-line-update))
-          (display-buffer buffer)))
+        (with-wandbox-output-buffer (:erase t)
+          (view-mode +1)
+          (setq mode-line-process '((:propertize ":run" face compilation-mode-line-run)))
+          (force-mode-line-update)
+          (display-buffer (current-buffer))))
       (funcall callback
                (request url
                         :type "POST"
@@ -618,7 +620,9 @@ Compiler profile is determined by file extension."
 
 ;;;###autoload
 (defun wandbox (&rest args)
-  "Run wandbox."
+  "Run wandbox.
+If call interactively, call like `wandbox-compile-buffer'.
+Otherwise, call as `wandbox-compile' with ARGS."
   (interactive)
   (if (called-interactively-p 'any)
       (if (use-region-p)
@@ -644,7 +648,7 @@ Compiler profile is determined by file extension."
   (interactive)
   (let ((form (buffer-substring (progn (backward-sexp) (point))
                                 (progn (forward-sexp) (point)))))
-    (wandbox-compile :name "CLISP"
+    (wandbox-compile :name "sbcl"
                      :code (format
                             "(let ((*print-circle* t))
                                (format t \"~{~s~^ ;~%%~}\" (multiple-value-list %s)))"
@@ -689,7 +693,7 @@ Compiler profile is determined by file extension."
 
 ;; FIXME: use `tabulated-list-rever-hook'
 (defun wandbox-update-compilers ()
-  "Update `wandbox-servers' and byte-compile wandbox.el"
+  "Update `wandbox-servers' and byte-compile wandbox.el."
   (interactive)
   (setq wandbox-servers
         (list
@@ -721,7 +725,7 @@ Compiler profile is determined by file extension."
                                    (cdr (assoc "name" item)) compilers))))
                     compilers)))
     (tabulated-list-init-header)
-    (message "%s" (wandbox-server-location server))
+    (message "Server: %s" (wandbox-server-location server))
     (hl-line-mode)))
 
 ;;;###autoload
@@ -746,7 +750,7 @@ Compiler profile is determined by file extension."
                   (wandbox-server-templates (wandbox-default-server)) nil t)))
   (save-excursion
     (insert (or (wandbox--template name)
-                (error "template `%s' not found" name)))))
+                (error "Template `%s' not found" name)))))
 
 ;;;###autoload
 (defun wandbox-customize (&optional other-window)
