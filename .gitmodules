@@ -1,0 +1,3 @@
+[submodule ".ci/recipe"]
+	path = .ci/recipe
+	url = https://gist.github.com/cbecab9afc38e31f97be2db35353b57a.git
