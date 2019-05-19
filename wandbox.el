@@ -141,7 +141,8 @@ Return value will be merged into the old profile."
 ;; Faces
 
 (defface wandbox-output-header
-  '((t :weight bold :background "systemGreenColor"))
+  ;; systemGreenColor: #32d74b
+  '((t :weight bold :background "#32d74b"))
   "Wandbox face for output header.")
 
 (defface wandbox-output-keyword
@@ -149,7 +150,7 @@ Return value will be merged into the old profile."
   "Wandbox face for output keyword.")
 
 (defface wandbox-output-data
-  '((t :background "gray90"))
+  '((t :background "gray95"))
   "Wandbox face for output data.")
 
 
