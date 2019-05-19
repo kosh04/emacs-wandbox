@@ -10,10 +10,10 @@
 (require 'wandbox)
 (require 'cl-lib)
 
-(when (getenv "TRAVIS")
-  (load "tls-patch")
-  (require 'request)
-  (setq request-backend 'url-retrieve))
+;; (when (getenv "TRAVIS")
+;;   (load "tls-patch")
+;;   (require 'request)
+;;   (setq request-backend 'url-retrieve))
 
 ;; test assoc
 (defun wandbox-test-alist-subsetp (aitem alist)
