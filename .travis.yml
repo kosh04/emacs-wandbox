@@ -1,15 +1,26 @@
 language: generic
 
 dist: trusty
-sudo: false
+sudo: required
 
 env:
-  - EMACS=emacs-24.4
-  - EMACS=emacs-24.5
-  - EMACS=emacs-25.1
-  - EMACS=emacs-25.2
-  
+  global:
+    # XXX: see details, etc/NEWS.24
+    - NO_BIN_LINK=t
+  matrix:
+    - EMACS=emacs-24.5
+    - EMACS=emacs-25.3
+    - EMACS=emacs-26.2
+
+matrix:
+  allow_failures:
+    - env: EMACS=emacs-24.5
+
 before_install:
+  # XXX: see details, etc/PROBLEMS [*** Segfault during 'make']
+  - sudo sysctl kernel.randomize_va_space
+  - sudo sysctl -w kernel.randomize_va_space=0
+
   - make -C .ci/recipe -f emacs.mk EMACS=${EMACS} PREFIX=${HOME}/.local/${EMACS}
   - export PATH=${HOME}/.local/${EMACS}/bin:${PATH}
   - ${EMACS} --version
